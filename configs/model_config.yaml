@@ -1,0 +1,15 @@
+baseline_model:
+  name: "openai/whisper-large-v3-turbo"
+  batch_size: 32
+  device: "cuda"
+
+finetuning:
+  learning_rate: 2e-5
+  num_epochs: 3
+  warmup_steps: 500
+  weight_decay: 0.01
+
+pruning:
+  method: "magnitude"
+  amount: 0.3
+  schedule: "gradual" 

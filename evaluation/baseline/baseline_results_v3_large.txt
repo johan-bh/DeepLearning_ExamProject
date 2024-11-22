@@ -1,0 +1,20 @@
+openai/whisper-large-v3 Baseline Results on Danish Fleurs
+Word Error Rate (WER): 0.2278
+Character Error Rate (CER): 0.0649
+
+Example Predictions:
+
+Reference: dette er en vigtig måde at skelne mellem nogle verber og objektiver
+Prediction:  det er en vigtig måde at skælde mellem nogle verber og objektiver.
+
+Reference: fordi dinosaurfjerene ikke har et veludviklet skaft kaldet et fjerskaft men har andre kendetegn fra fjer stråler og bistråler udledte forskerne at fjerskaft sandsynligvis var en senere evolutionær udvikling end disse andre karakteristika
+Prediction:  fordi dinosaurfjerne ikke har et veludviklet skraft kaldt et fjerskraft, men har andre kendetegn fra fjer, stråler og bistråler, udledte forskerne, at fjerskraft sandsynligvis var en senere revolutionær udvikling end disse andre karakteristika.
+
+Reference: nordmarianernes beredskabskontor meddelte at der ikke var rapporteret om skader i nationen
+Prediction:  nordmarinanernes beredskabskontor meddeler, at der ikke var rapporteret om skader i nationen.
+
+Reference: finland er et fantastisk rejsemål for sejlere de tusind søers land har også tusindvis af øer i søerne samt i øhavene langs kysten
+Prediction:  finland er et fantastisk rejsemål for sejlere. de tusind søers land har også tusindvis af øer i søerne samt i øhavne langs kysten.
+
+Reference: folk har kendt til de grundlæggende kemiske grundstoffer såsom guld sølv og kobber siden oldtiden fordi de findes i naturen i deres naturlige form og er relativt nemme at grave efter hvis man har de rigtige værktøjer
+Prediction:  folk har kendt til de grundlæggende kemiske grundstoffer, såsom guld, sølv og kover, siden altiden, fordi de findes i naturen i deres naturlige form og er relativt nemme at grave efter, hvis man har de rigtige værktøjer.
