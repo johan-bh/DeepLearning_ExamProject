@@ -56,3 +56,6 @@ evaluation/**/results/*
 !evaluation/baseline/results/
 !evaluation/finetuned/
 !evaluation/finetuned/results/
+
+/home/dokudok/DeepLearning_ExamProject/data
+data/cached_datasets/

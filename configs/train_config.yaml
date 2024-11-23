@@ -3,7 +3,7 @@ defaults:
 
 # Training parameters
 training:
-  output_dir: "models/whisper-large-v3-danish"
+  output_dir: "models/whisper-large-v3-turbo"
   num_train_epochs: 3
   batch_size: 8
   gradient_accumulation_steps: 2

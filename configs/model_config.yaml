@@ -1,7 +1,11 @@
 baseline_model:
-  name: "openai/whisper-large-v3-turbo"
-  batch_size: 32
-  device: "cuda"
+  name: "syvai/hviske-v2"
+  dataset_name: "google/fleurs"
+  dataset_config: "da_dk"
+  label_column: "transcription"
+  batch_size: 8
+  device: 0
+  max_test_samples: null
 
 finetuning:
   learning_rate: 2e-5

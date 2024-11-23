@@ -1,0 +1,20 @@
+openai/whisper-large-v3-turbo Baseline Results on alexandrainst/nst-da (test split)
+Word Error Rate (WER): 0.2971
+Character Error Rate (CER): 0.1512
+
+Example Predictions:
+
+Reference: tester en to tre fire fem seks syv otte.
+Prediction:  tester 1, 2, 3, 4, 5, 6, 7, 8.
+
+Reference: adskillige af de huse, som kommunen byggede sidste år, er blevet beskadiget under den sidste tids stormvejr.
+Prediction:  adskillige af de huse, som kommunen byggede sidste år, er blevet beskadiget under den sidste tids stormvejr.
+
+Reference: anden gang jeg var i hjørring, mødte jeg både troels og per hos fiskehandlerne.
+Prediction:  anden gang jeg var i jøring, mødte jeg både troels og per hos fiskehandlerne.
+
+Reference: da de var kommet ud til den gamle mølle uden for byen, vendte de om og kørte hjem igen.
+Prediction:  da de var kommet ud til den gamle mølle uden for byen, vendte de om og kørte hjem igen.
+
+Reference: der var både blodpølse og sylte på bordet, men han sagde, at han bare ville spise varm mad såsom suppe.
+Prediction:  der var både blodpølse og sylte på bordet, men han sagde, at han bare ville spise varm mad, såsom suppe.

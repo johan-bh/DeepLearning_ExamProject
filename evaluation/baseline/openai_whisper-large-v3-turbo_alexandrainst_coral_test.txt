@@ -1,0 +1,20 @@
+openai/whisper-large-v3-turbo Baseline Results on alexandrainst/coral (test split)
+Word Error Rate (WER): 0.3470
+Character Error Rate (CER): 0.1263
+
+Example Predictions:
+
+Reference: normannerne er en dansk film fra 1976
+Prediction:  en umaner er en dansk film fra 1976.
+
+Reference: begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne
+Prediction:  bæger og klønge støtter sig kløngeorganisationer til vækst og fremvejeindustri.
+
+Reference: i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen
+Prediction:  i mildere tilfælde kan smalte klares med paracetamol og ibuprofen.
+
+Reference: grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond
+Prediction:  grænt er du at lave liges her igennem og umældet ved at fastlås lig omkring af hordes dag, richmond.
+
+Reference: i 1999 blev herning rejser fusioneret med falk lauritsen
+Prediction:  i 1999 blev herning rejse fusionert med falk lauritsen.

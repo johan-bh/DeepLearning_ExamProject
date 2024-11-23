@@ -1,6 +1,6 @@
 openai/whisper-large-v3-turbo Baseline Results on Danish Fleurs (test split)
-Word Error Rate (WER): 0.2390
-Character Error Rate (CER): 0.0682
+Word Error Rate (WER): 0.2387
+Character Error Rate (CER): 0.0681
 
 Example Predictions:
 

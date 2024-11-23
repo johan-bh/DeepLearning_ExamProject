@@ -1,0 +1,20 @@
+syvai/hviske-v2 Baseline Results on google/fleurs (da_dk, train split)
+Word Error Rate (WER): 0.0899
+Character Error Rate (CER): 0.0301
+
+Example Predictions:
+
+Reference: murray tabte det første sæt i en tiebreak efter at begge mænd havde vundet alle egne serv i sættet
+Prediction: murray tabte det første sæt i en tiebreak efter at begge mænd havde vundet alle egne særv i sættet
+
+Reference: italiens hovedmål var afrikanske lande for at erobre disse lande skulle de bruge en affyringsrampe til tropperne så disse kunne sejle henover middelhavet og invadere afrika
+Prediction: italiens hovedmål var afrikanske lande for at erobre disse lande skulle de bruge en affyringsrampe til tropperne så disse kunne sejle hen over middelhavet og invadere afrika
+
+Reference: sydpolsruten er en 1.600 kilometer lang sti fra mcmurdo station ved rosshavet til polen
+Prediction: sydpostruten er en 1600 kilometer lang sti fra mcmurdo station ved rush herred til polen
+
+Reference: nadals mand-til-mand rekord mod canadieren er 7-2
+Prediction: nadals mand til mand rekord mod canadierne er 7 to
+
+Reference: det kan spare penge i forhold til at købe nye kort til en gps en separat gps-enhed eller leje af en fra et biludlejningsfirma
+Prediction: det kan spare penge i forhold til at købe nye kort til en gps en separat gps enhed eller leje af en fra et bilulegningsfirma
