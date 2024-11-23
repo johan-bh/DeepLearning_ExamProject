@@ -1,0 +1,28 @@
+defaults:
+  - _self_
+
+# Training parameters
+training:
+  output_dir: "models/whisper-large-v3-danish"
+  num_train_epochs: 3
+  batch_size: 8
+  gradient_accumulation_steps: 2
+  learning_rate: 1e-5
+  weight_decay: 0.01
+  warmup_steps: 500
+  max_steps: null
+  fp16: true
+  save_steps: 500
+  eval_steps: 500
+  logging_steps: 100
+
+# Model parameters
+model:
+  name: "openai/whisper-large-v3-turbo"
+  freeze_encoder: true
+
+# Dataset parameters
+dataset:
+  name: "alexandrainst/nst-da"
+  sampling_rate: 16000
+  num_proc: 4 
