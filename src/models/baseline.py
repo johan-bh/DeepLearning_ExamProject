@@ -30,9 +30,9 @@ def process_audio_batch(batch, asr_pipeline):
     outputs = asr_pipeline(processed_batch, generate_kwargs={"language": "da"})
     return outputs
 
-def evaluate_whisper(model_name):
+def evaluate_whisper(model_name, split="test"):
     # Load Danish subset of the Fleurs dataset
-    dataset = load_dataset("google/fleurs", "da_dk", split="test", trust_remote_code=True)
+    dataset = load_dataset("google/fleurs", "da_dk", split=split, trust_remote_code=True)
     
     # Initialize the ASR pipeline
     asr_pipeline = load_asr_pipeline(model_name)
@@ -62,13 +62,14 @@ def evaluate_whisper(model_name):
     word_error_rate = wer(references, predictions)
     character_error_rate = cer(references, predictions)
     
-    print(f"\nResults for {model_name} on Danish Fleurs:")
+    print(f"\nResults for {model_name} on Danish Fleurs ({split} split):")
     print(f"Word Error Rate (WER): {word_error_rate:.4f}")
     print(f"Character Error Rate (CER): {character_error_rate:.4f}")
     
     # Save results to file
-    with open(f"evaluation/baseline/baseline_{model_name.replace('/', '_')}.txt", "w", encoding="utf-8") as f:
-        f.write(f"{model_name} Baseline Results on Danish Fleurs\n")
+    results_file = f"evaluation/baseline/baseline_{model_name.replace('/', '_')}_{split}.txt"
+    with open(results_file, "w", encoding="utf-8") as f:
+        f.write(f"{model_name} Baseline Results on Danish Fleurs ({split} split)\n")
         f.write(f"Word Error Rate (WER): {word_error_rate:.4f}\n")
         f.write(f"Character Error Rate (CER): {character_error_rate:.4f}\n")
         
@@ -79,4 +80,9 @@ def evaluate_whisper(model_name):
             f.write(f"\nPrediction: {predictions[i]}\n")
 
 if __name__ == "__main__":
-    evaluate_whisper("openai/whisper-large-v3") 
+    # Example usage with both splits
+    # openai/whisper-large-v3-turbo
+    # openai/whisper-large-v3
+    model_name = "openai/whisper-large-v3"
+    # evaluate_whisper(model_name, split="test")
+    evaluate_whisper(model_name, split="train") 
