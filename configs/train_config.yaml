@@ -9,11 +9,11 @@ training:
   gradient_accumulation_steps: 2
   learning_rate: 1e-5
   weight_decay: 0.01
-  warmup_steps: 500
-  max_steps: null
+  warmup_steps: 100
+  max_steps: -1
   fp16: true
-  save_steps: 500
-  eval_steps: 500
+  save_steps: 100
+  eval_steps: 100
   logging_steps: 100
 
 # Model parameters
@@ -24,5 +24,8 @@ model:
 # Dataset parameters
 dataset:
   name: "alexandrainst/nst-da"
+  config: null
   sampling_rate: 16000
-  num_proc: 4 
+  num_proc: 1
+  train_split: "train"
+  eval_split: "test"

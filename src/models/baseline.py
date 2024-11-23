@@ -72,7 +72,7 @@ def load_config(config_path="configs/model_config.yaml"):
         return yaml.safe_load(f)
     
 
-def evaluate_whisper(config_path="configs/model_config.yaml", split="train"):
+def evaluate_whisper(config_path="configs/model_config.yaml"):
     # Load configurations
     config = load_config(config_path)
     model_config = config['baseline_model']
@@ -81,10 +81,13 @@ def evaluate_whisper(config_path="configs/model_config.yaml", split="train"):
     model_name = model_config['name']
     dataset_name = model_config['dataset_name']
     dataset_config = model_config.get('dataset_config')
-    label_column = model_config.get('label_column', 'text')  # Default to 'text'
+    label_column = model_config.get('label_column', 'text')
     batch_size = model_config['batch_size']
     device = model_config['device']
     max_samples = model_config.get('max_test_samples', None)
+    
+    # Use configured splits or fallback to defaults
+    split = model_config.get('eval_split', 'validation')  # Use validation as test set
     
     try:
         # Load dataset with streaming enabled
@@ -92,13 +95,13 @@ def evaluate_whisper(config_path="configs/model_config.yaml", split="train"):
             dataset = load_dataset(
                 dataset_name, 
                 dataset_config, 
-                split=split,
+                split=split,  # Use the configured split
                 streaming=True
             )
         else:
             dataset = load_dataset(
                 dataset_name, 
-                split=split,
+                split=split,  # Use the configured split
                 streaming=True
             )
         

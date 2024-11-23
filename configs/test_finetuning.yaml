@@ -1,0 +1,10 @@
+model:
+  path: "models/whisper-large-v3-turbo"
+  device: 0  # Use GPU 0
+  fp16: true
+
+dataset:
+  name: "google/fleurs"
+  config: "da_dk"
+  split: "test"
+  batch_size: 8 

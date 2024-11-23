@@ -59,3 +59,9 @@ evaluation/**/results/*
 
 /home/dokudok/DeepLearning_ExamProject/data
 data/cached_datasets/
+
+models/
+
+outputs/
+
+.venv/
