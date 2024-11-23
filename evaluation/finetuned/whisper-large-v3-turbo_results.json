@@ -1,29 +1,29 @@
 {
   "model_path": "models/whisper-large-v3-turbo",
   "metrics": {
-    "wer": 0.06135061802833886,
-    "cer": 0.019017341985256862
+    "wer": 0.34845744146316954,
+    "cer": 0.12271783723705072
   },
   "examples": [
     {
-      "reference": " dette er en vigtig måde at skelne mellem nogle verber og objektiver",
-      "prediction": " dette er en vigtig måde at skelne mellem nogle verber og objektiver"
+      "reference": "dette er en vigtig måde at skelne mellem nogle verber og objektiver",
+      "prediction": "det der er en vigtig måde at skille mellem nogle værbare objektiver."
     },
     {
       "reference": "fordi dinosaurfjerene ikke har et veludviklet skaft kaldet et fjerskaft men har andre kendetegn fra fjer stråler og bistråler udledte forskerne at fjerskaft sandsynligvis var en senere evolutionær udvikling end disse andre karakteristika",
-      "prediction": " fordi dinosaurfjerene ikke har et veludviklet skaft kaldet et fjerskaft men har andre kendetegn fra fjer stråler og bistråler udledte forskerne at fjerschkaft sandsynligvis var en senere evolutionær udvikling end disse andre karakteristika"
+      "prediction": "fordi dinosaurfjerne ikke har et vedudviklet skraft kaldes et fjerdskaft, men har andre kendetegn fra fjær, strålere og bistrålere, udledte forskerne, at fjerskaft sandsynligvis var en senere, evolutionær, udvikling end disse andre karakteristika."
     },
     {
       "reference": "nordmarianernes beredskabskontor meddelte at der ikke var rapporteret om skader i nationen",
-      "prediction": " nordmarianernes beredskabskontor meddelte at der ikke var rapporteret om skader i nationen"
+      "prediction": "normarinalernes beredskapskontor meddelede, at der ikke var rapporteret om skade i nationen."
     },
     {
       "reference": "finland er et fantastisk rejsemål for sejlere de tusind søers land har også tusindvis af øer i søerne samt i øhavene langs kysten",
-      "prediction": "finland er et fantastisk rejsemål for sejlere de tusind søers land har også tusindvis af øer i søerne samt i øhavene langs kysten"
+      "prediction": "fældlandet er et fantastisk rejsemål for sejlere.de tusind søers land har også tusindvis af øer i søerne, samt i øhavne langs kysten."
     },
     {
       "reference": "folk har kendt til de grundlæggende kemiske grundstoffer såsom guld sølv og kobber siden oldtiden fordi de findes i naturen i deres naturlige form og er relativt nemme at grave efter hvis man har de rigtige værktøjer",
-      "prediction": "folk har kendt til de grundlæggende kemiske grundstoffer såsom guld sølv og korver siden oldtiden fordi de findes i naturen i deres naturlige form og er relativt nemme at grave efter hvis man har de rigtige værktøjer"
+      "prediction": " folk har kendt til de grundlæggende kemiske grundstoffer, såsom guld, søl og kogre, siden oldtiden, fordi de findes i naturen i deres naturlige form, og er relativt nemme at grave efter, hvis man har de rigtige værktøjer."
     }
   ]
 }

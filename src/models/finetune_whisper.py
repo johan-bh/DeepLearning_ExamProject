@@ -65,7 +65,7 @@ def prepare_dataset(example, processor):
 
     # Tokenize text
     labels = processor.tokenizer(
-        example["transcription"],
+        example["text"],
         return_tensors="pt"
     ).input_ids[0]
 
@@ -154,8 +154,8 @@ def train_whisper(cfg: DictConfig):
     )
     
     # Convert streaming datasets to regular datasets
-    train_data = list(train_dataset.take(2000))  # Adjust number as needed
-    val_data = list(eval_dataset.take(500))  # Adjust number as needed
+    train_data = list(train_dataset.take(10000))  # Adjust number as needed
+    val_data = list(eval_dataset.take(1000))  # Adjust number as needed
     
     # Create datasets
     dataset = DatasetDict({
