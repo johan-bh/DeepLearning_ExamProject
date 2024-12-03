@@ -1,10 +1,10 @@
 model:
-  path: "models/whisper-large-v3-turbo"
+  path: "syvai/hviske-v2"
   device: 0  # Use GPU 0
-  fp16: true
+  fp16: false
 
 dataset:
-  name: "google/fleurs"
-  config: "da_dk"
+  name: "alexandrainst/coral"
+  config: null
   split: "test"
-  batch_size: 8 
+  batch_size: 32

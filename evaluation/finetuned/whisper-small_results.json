@@ -1,0 +1,34 @@
+{
+  "model_path": "openai/whisper-small",
+  "metrics": {
+    "wer": 0.5585618303976757,
+    "cer": 0.2244172145845786
+  },
+  "examples": [
+    {
+      "dialect": "vestjysk",
+      "reference": "normannerne er en dansk film fra 1976",
+      "prediction": " og nu mener jeg, at denne film for 1906 er fjerns."
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne",
+      "prediction": " bav og klunger støtter sig klungorganisationer til vækst og frem af industrie."
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen",
+      "prediction": " i midlere tilfælde kan jeg smadre klare med paris tamol og ibo profen."
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond",
+      "prediction": " grønt er du der laver lige her og gennem og umar, altså ved at fastlås lige omkring ahoverstad, vetsimondt."
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "i 1999 blev herning rejser fusioneret med falk lauritsen",
+      "prediction": " i 1999 blev herno reise funktionert med folk lavøjsen."
+    }
+  ]
+}

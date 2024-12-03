@@ -1,34 +1,34 @@
 {
-  "model_path": "openai/whisper-large-v3-turbo",
+  "model_path": "openai/whisper-medium",
   "metrics": {
-    "wer": 0.32753623188405795,
-    "cer": 0.11436359326854705
+    "wer": 0.991494532199271,
+    "cer": 0.9914674656418941
   },
   "examples": [
     {
       "dialect": "thybomål",
       "reference": "netværket skulle udvides til hele det europæiske jernbanenet",
-      "prediction": " networker skal udvides til hele det europæiske jernbanenet."
+      "prediction": "."
     },
     {
       "dialect": "thybomål",
       "reference": "multiplikationsfaktoren mellem defg og abcd er altså 2",
-      "prediction": " multiplikationsfaktoren mellem defg og abcd er altså tog."
+      "prediction": "."
     },
     {
       "dialect": "thybomål",
       "reference": "bygningen tilhører nu andelsboligforeningen peder skrams gård",
-      "prediction": " bygningen leverer nu anspråg for en vedheder skræm sko"
+      "prediction": " the"
     },
     {
       "dialect": "thybomål",
       "reference": "han var den første administrerende direktør for den danske landmandsbank",
-      "prediction": " han var den første, og den først og den støtte til at du er til at få den dansk landmannsbank."
+      "prediction": " i"
     },
     {
       "dialect": "thybomål",
       "reference": "det vand der kommer indenlands fra indeholder kvælstof fra landbruget",
-      "prediction": " det er ordentligt, at det kommer indlandsfra at indholde kvalestof for landbordet."
+      "prediction": " i"
     }
   ]
 }

@@ -169,6 +169,7 @@ def train_whisper(cfg: DictConfig):
     print(f"Train size: {len(dataset['train'])}")
     print(f"Validation size: {len(dataset['validation'])}")
     
+    
     # Preprocess dataset
     print("\nPreprocessing dataset...")
     dataset = dataset.map(
@@ -198,7 +199,7 @@ def train_whisper(cfg: DictConfig):
         label_names=["labels"],
         push_to_hub=False,
         load_best_model_at_end=True,
-        metric_for_best_model="cer",
+        metric_for_best_model="wer",
         greater_is_better=False,
         eval_accumulation_steps=None,  # Disable eval accumulation
         predict_with_generate=True,    # Important for seq2seq evaluation

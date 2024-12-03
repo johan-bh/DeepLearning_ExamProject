@@ -1,34 +1,34 @@
 {
-  "model_path": "openai/whisper-large-v3-turbo",
+  "model_path": "openai/whisper-large-v3",
   "metrics": {
-    "wer": 0.32753623188405795,
-    "cer": 0.11436359326854705
+    "wer": 0.3710144927536232,
+    "cer": 0.157146243185589
   },
   "examples": [
     {
       "dialect": "thybomål",
       "reference": "netværket skulle udvides til hele det europæiske jernbanenet",
-      "prediction": " networker skal udvides til hele det europæiske jernbanenet."
+      "prediction": " netværket skulle udvides til hele det europæiske jernbanenet."
     },
     {
       "dialect": "thybomål",
       "reference": "multiplikationsfaktoren mellem defg og abcd er altså 2",
-      "prediction": " multiplikationsfaktoren mellem defg og abcd er altså tog."
+      "prediction": " multiplikationsfaktoren mellem defc og abcd er altså 2."
     },
     {
       "dialect": "thybomål",
       "reference": "bygningen tilhører nu andelsboligforeningen peder skrams gård",
-      "prediction": " bygningen leverer nu anspråg for en vedheder skræm sko"
+      "prediction": " bygdenen derlægger nu andensboligforeningen, der hedder skramsko"
     },
     {
       "dialect": "thybomål",
       "reference": "han var den første administrerende direktør for den danske landmandsbank",
-      "prediction": " han var den første, og den først og den støtte til at du er til at få den dansk landmannsbank."
+      "prediction": " han var den første administrerende direktør for den danske landmandsbank."
     },
     {
       "dialect": "thybomål",
       "reference": "det vand der kommer indenlands fra indeholder kvælstof fra landbruget",
-      "prediction": " det er ordentligt, at det kommer indlandsfra at indholde kvalestof for landbordet."
+      "prediction": " det er vant, der kommer indenlands fra at indholde kvælstof fra landbruget."
     }
   ]
 }

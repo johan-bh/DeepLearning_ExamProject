@@ -6,175 +6,228 @@ from tqdm import tqdm
 import os
 import json
 import yaml
+from itertools import islice
+import librosa  # For audio resampling
 
 def load_config(config_path="configs/test_finetuning.yaml"):
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
+def batch_iterator(dataset, batch_size):
+    dataset_iter = iter(dataset)
+    while True:
+        batch = list(islice(dataset_iter, batch_size))
+        if not batch:
+            break
+        yield batch
+
+def resample_audio(audio_array, original_sampling_rate, target_sampling_rate):
+    if original_sampling_rate != target_sampling_rate:
+        audio_array = librosa.resample(
+            audio_array,
+            orig_sr=original_sampling_rate,
+            target_sr=target_sampling_rate
+        )
+    return audio_array
+
 def load_model_and_processor(config):
     """Load a finetuned model and processor from the config"""
     model_path = config['model']['path']
-    print(f"Loading model from: {model_path}")
+    print(f"Loading processor...")
     
-    # Load processor with language and task
-    processor = WhisperProcessor.from_pretrained(
-        model_path,
-        language="Danish",
-        task="transcribe",
-        legacy_format=False
-    )
+    # Load processor
+    processor = WhisperProcessor.from_pretrained(model_path)
+    print("✓ Processor loaded")
     
-    # Load model
+    print(f"Loading model weights (this might take a few minutes)...")
     model = WhisperForConditionalGeneration.from_pretrained(
         model_path,
         torch_dtype=torch.float16 if config['model']['fp16'] else torch.float32,
         device_map=None,
         low_cpu_mem_usage=True
     )
+    print("✓ Model weights loaded")
     
-    # Set forced decoder IDs
-    forced_decoder_ids = processor.get_decoder_prompt_ids(language="Danish", task="transcribe")
-    model.config.forced_decoder_ids = forced_decoder_ids
-    
-    # Set other generation config parameters if needed
-    model.generation_config.no_repeat_ngram_size = 3
-    model.generation_config.num_beams = 1
-    model.generation_config.max_length = 256
-    
-    # Force using specific GPU
-    torch.cuda.set_device(config['model']['device'])
+    print("Setting up model configuration...")
+    try:
+        # Get forced decoder IDs for Danish
+        forced_decoder_ids = processor.get_decoder_prompt_ids(language="da", task="transcribe")
+        model.config.forced_decoder_ids = forced_decoder_ids
+        model.generation_config.forced_decoder_ids = forced_decoder_ids
+        print("✓ Forced decoder IDs set for Danish")
+    except Exception as e:
+        print(f"Warning: Could not set forced decoder IDs: {str(e)}")
+        print("The model may still work, but language forcing might not be optimal")
+
+    # Move model to specified GPU
+    available_devices = torch.cuda.device_count()
+    if config['model']['device'] >= available_devices:
+        raise ValueError(f"Invalid device ID {config['model']['device']}. Available devices: {available_devices}")
+    print(f"Moving model to GPU {config['model']['device']}...")
     model = model.to(f"cuda:{config['model']['device']}")
+    print("✓ Model ready on GPU")
     
     return model, processor
 
 def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
-    """Evaluate a finetuned Whisper model using config file"""
+    """Evaluate a finetuned Whisper model using the config file"""
     # Load config
     config = load_config(config_path)
     print("\n=== Starting Finetuned Model Evaluation ===")
-    
+
     # Create output directory
     output_dir = "evaluation/finetuned"
     os.makedirs(output_dir, exist_ok=True)
-    
-    # Load dataset
-    print(f"\nLoading dataset: {config['dataset']['name']}")
+
+    # Load dataset in streaming mode
+    print(f"\nStep 1/4: Loading dataset '{config['dataset']['name']}' in streaming mode...")
     dataset = load_dataset(
         config['dataset']['name'],
         config['dataset']['config'],
-        split=config['dataset']['split']
+        split=config['dataset']['split'],
+        streaming=True
     )
-    print(f"Dataset size: {len(dataset)}")
-    print(f"Dataset columns: {dataset.column_names}")
-    
+    print(f"✓ Dataset loaded successfully in streaming mode")
+
     # Load model and processor
+    print(f"\nStep 2/4: Loading model from {config['model']['path']}...")
     model, processor = load_model_and_processor(config)
-    print(f"Model loaded successfully on {next(model.parameters()).device}")
-    
+    print(f"✓ Model loaded successfully on {next(model.parameters()).device}")
+
+    print("\nStep 3/4: Processing audio samples...")
     # Initialize lists
     predictions = []
     references = []
-    
-    # Process in batches
+    dialects = []  # New list to store dialects
+
+    # Create batch iterator
     batch_size = config['dataset']['batch_size']
-    for i in tqdm(range(0, len(dataset), batch_size), desc="Processing audio"):
-        batch_indices = range(i, min(i + batch_size, len(dataset)))
-        
+    batch_iter = batch_iterator(dataset, batch_size)
+
+    # Limit the number of samples for debugging
+    max_samples = 500
+    sample_count = 0
+
+    # Calculate max_length_samples
+    max_length_samples = 30 * processor.feature_extractor.sampling_rate  # 30 seconds * 16000 Hz
+    target_sampling_rate = processor.feature_extractor.sampling_rate
+
+    for batch in tqdm(batch_iter, desc="Processing batches"):
         try:
-            # Get audio arrays and ensure proper length
+            # Get audio arrays, transcriptions, and dialects from the batch
+            audio_arrays = []
+            transcriptions = []
+            batch_dialects = []  # Temporary list for the batch
+            for sample in batch:
+                if sample.get("audio") and sample["audio"].get("array") is not None:
+                    audio_array = sample["audio"]["array"]
+                    original_sampling_rate = sample["audio"]["sampling_rate"]
+                    # Resample audio if necessary
+                    audio_array = resample_audio(audio_array, original_sampling_rate, target_sampling_rate)
+                    audio_arrays.append(audio_array)
+                    transcriptions.append(sample["text"])
+                    # Extract dialect, handle if missing
+                    dialect = sample.get("dialect", "Unknown")
+                    batch_dialects.append(dialect)
+                else:
+                    print("Skipping invalid sample")
+
+            if not audio_arrays:
+                continue  # Skip if no valid audio arrays
+
+            # Preprocess audio inputs with correct padding
             audio_inputs = processor(
-                [dataset[j]["audio"]["array"] for j in batch_indices],
-                sampling_rate=16000,
+                audio_arrays,
+                sampling_rate=target_sampling_rate,
                 return_tensors="pt",
-                padding=True,
-                max_length=processor.feature_extractor.n_samples,  # Use processor's expected length
+                padding="max_length",
+                max_length_samples=max_length_samples,  # Pad/truncate to 480,000 samples
                 truncation=True,
-                return_attention_mask=True
+                return_attention_mask=False  # Whisper does not use attention masks
             )
-            
-            # Convert to FP16 if needed
-            if config['model']['fp16']:
-                input_features = audio_inputs.input_features.to(torch.float16)
-            else:
-                input_features = audio_inputs.input_features
-            
-            # Move to device
-            input_features = input_features.to(model.device)
-            attention_mask = audio_inputs.attention_mask.to(model.device)
-            
-            # Print shape for debugging
-            print(f"Input features shape: {input_features.shape}")
-            
+
+            # Convert to desired dtype and move to device
+            input_features = audio_inputs.input_features.to(
+                torch.float16 if config['model']['fp16'] else torch.float32
+            ).to(model.device)
+
             # Generate transcriptions
             with torch.no_grad():
                 outputs = model.generate(
                     input_features,
-                    attention_mask=attention_mask,
-                    language="da",
-                    task="transcribe",
                     return_dict_in_generate=True,
-                    max_length=256
+                    max_length=256,
+                    temperature=0.0,  # Make output more deterministic
+                    do_sample=False,  # Don't use sampling
+                    num_beams=1  # Use greedy decoding
                 )
-            
+
             # Decode predictions
             batch_predictions = processor.batch_decode(
                 outputs.sequences,
                 skip_special_tokens=True
             )
-            
-            # Store valid predictions and references
-            for idx, pred in enumerate(batch_predictions):
-                if pred.strip():  # Only store non-empty predictions
+
+            # Store predictions, references, and dialects
+            for ref, pred, dialect in zip(transcriptions, batch_predictions, batch_dialects):
+                if pred.strip():
                     predictions.append(pred.lower())
-                    references.append(dataset[batch_indices[idx]]["transcription"].lower())
-                    
-                    # Print for debugging
-                    print(f"\nPrediction {len(predictions)}:")
-                    print(f"Reference: {references[-1]}")
-                    print(f"Predicted: {predictions[-1]}")
-            
+                    references.append(ref.lower())
+                    dialects.append(dialect)
+
+            # Update sample count and check limit
+            sample_count += len(batch_predictions)
+            if sample_count >= max_samples:
+                print(f"Reached maximum sample limit of {max_samples}. Stopping.")
+                break
+
         except Exception as e:
-            print(f"Error processing batch at index {i}: {str(e)}")
+            print(f"\nError processing batch: {str(e)}")
             continue
-    
+
+    print("\nStep 4/4: Calculating final metrics...")
+
     # Validate predictions and references
     if not predictions or not references:
         raise ValueError("No valid predictions or references generated")
-    
-    print(f"\nProcessed {len(predictions)} valid samples out of {len(dataset)} total")
-    
+
+    # Report the number of processed samples
+    print(f"\nProcessed {len(predictions)} valid samples")
+
     # Ensure all entries are non-empty
-    valid_pairs = [(ref, pred) for ref, pred in zip(references, predictions) 
+    valid_pairs = [(ref, pred, dialect) for ref, pred, dialect in zip(references, predictions, dialects)
                    if ref and pred]
-    
+
     if not valid_pairs:
         raise ValueError("No valid prediction-reference pairs found")
-    
-    references, predictions = zip(*valid_pairs)
+
+    references, predictions, dialects = zip(*valid_pairs)
     references = list(references)
     predictions = list(predictions)
-    
-    # Print some examples
-    print("\nFirst few predictions and references:")
+    dialects = list(dialects)
+
+    # Print some examples including dialect
+    print("\nFirst few predictions, references, and dialects:")
     for i in range(min(5, len(predictions))):
         print(f"\nExample {i+1}:")
+        print(f"Dialect: '{dialects[i]}'")
         print(f"Reference: '{references[i]}'")
         print(f"Prediction: '{predictions[i]}'")
         print("-" * 50)
-    
+
     # Calculate metrics
     try:
         word_error_rate = wer(references, predictions)
         character_error_rate = cer(references, predictions)
-        
+
         print(f"\nResults:")
         print(f"Word Error Rate (WER): {word_error_rate:.4f}")
         print(f"Character Error Rate (CER): {character_error_rate:.4f}")
-        
+
     except Exception as e:
         print(f"Error calculating metrics: {str(e)}")
         raise
-    
+
     # Prepare results
     results = {
         "model_path": config['model']['path'],
@@ -184,21 +237,22 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
         },
         "examples": []
     }
-    
-    # Add examples
-    for i in range(min(5, len(predictions))):
+
+    # Add examples including dialect
+    for ref, pred, dialect in zip(references[:5], predictions[:5], dialects[:5]):
         results["examples"].append({
-            "reference": references[i],
-            "prediction": predictions[i]
+            "dialect": dialect,
+            "reference": ref,
+            "prediction": pred
         })
-    
+
     # Save results
     model_name = os.path.basename(config['model']['path'])
     output_file = os.path.join(output_dir, f"{model_name}_results.json")
-    
+
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
-    
+
     print(f"\nFull results saved to: {output_file}")
 
 if __name__ == "__main__":
