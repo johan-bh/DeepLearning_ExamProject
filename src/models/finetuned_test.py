@@ -105,7 +105,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     batch_iter = batch_iterator(dataset, batch_size)
 
     # Limit the number of samples for debugging
-    max_samples = 500
+    max_samples = 100
     sample_count = 0
 
     # Calculate max_length_samples

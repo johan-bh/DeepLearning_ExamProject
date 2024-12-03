@@ -1,5 +1,6 @@
 model:
   path: "syvai/hviske-v2"
+  # path: "openai/whisper-large-v3-turbo"
   device: 0  # Use GPU 0
   fp16: false
 
