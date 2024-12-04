@@ -17,6 +17,10 @@ from pathlib import Path
 from tqdm.auto import tqdm
 import logging
 import transformers
+import sys
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from src.data.data_loader import load_dataset
+import numpy as np
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -68,7 +72,29 @@ class DistillationTrainer(Seq2SeqTrainer):
 
         # Only compute distillation loss during training
         if self.model.training:
-            # Prepare decoder_input_ids for the teacher model
+            # Get teacher predictions first to verify they're correct
+            with torch.no_grad():
+                # Generate teacher predictions
+                teacher_pred = self.teacher_model.generate(
+                    inputs["input_features"],
+                    language="da",
+                    task="transcribe",
+                    forced_decoder_ids=self.teacher_model.generation_config.forced_decoder_ids
+                )
+                
+                # Log teacher predictions at the start of training
+                if self.state.global_step == 0:
+                    teacher_text = self.processor.batch_decode(teacher_pred, skip_special_tokens=True)
+                    print("\nTeacher predictions:")
+                    print(teacher_text[:2])
+                    print("\nGround truth:")
+                    ground_truth = self.processor.batch_decode(
+                        inputs["labels"].masked_fill(inputs["labels"] == -100, self.processor.tokenizer.pad_token_id),
+                        skip_special_tokens=True
+                    )
+                    print(ground_truth[:2])
+
+            # Get teacher logits with proper input preparation
             labels_for_teacher = inputs["labels"].clone()
             labels_for_teacher[labels_for_teacher == -100] = self.teacher_model.config.pad_token_id
             decoder_input_ids = shift_tokens_right(
@@ -77,42 +103,41 @@ class DistillationTrainer(Seq2SeqTrainer):
                 self.teacher_model.config.decoder_start_token_id
             )
 
-            # Ensure input features are in the correct dtype
-            input_features = inputs["input_features"]
-            if self.teacher_model.dtype == torch.float16:
-                input_features = input_features.to(torch.float16)
+            # Teacher forward pass
+            teacher_outputs = self.teacher_model(
+                input_features=inputs["input_features"],
+                decoder_input_ids=decoder_input_ids,
+                output_hidden_states=True
+            )
+            teacher_logits = teacher_outputs.logits
 
-            # Prepare inputs for teacher
-            teacher_inputs = {
-                "input_features": input_features,
-                "decoder_input_ids": decoder_input_ids
-            }
-
-            # Forward pass for teacher
-            with torch.no_grad():
-                teacher_outputs = self.teacher_model(**teacher_inputs)
-                teacher_logits = teacher_outputs.logits
-
-            # Compute distillation loss
+            # Compute distillation loss with temperature scaling
             student_logits = outputs.logits
-
-            # Ensure logits have the same shape
             if student_logits.shape != teacher_logits.shape:
-                # Truncate or pad logits to match shapes
                 min_length = min(student_logits.size(1), teacher_logits.size(1))
                 student_logits = student_logits[:, :min_length, :]
                 teacher_logits = teacher_logits[:, :min_length, :]
 
-            distill_loss = F.kl_div(
-                F.log_softmax(student_logits / self.temperature, dim=-1),
-                F.softmax(teacher_logits / self.temperature, dim=-1),
-                reduction='batchmean'
-            ) * (self.temperature ** 2)
+            # KL divergence loss with temperature scaling
+            distill_loss = (
+                F.kl_div(
+                    F.log_softmax(student_logits / self.temperature, dim=-1),
+                    F.softmax(teacher_logits / self.temperature, dim=-1),
+                    reduction='batchmean',
+                    log_target=False
+                ) * (self.temperature ** 2)
+            )
 
-            # Combine losses
+            # Combine losses with alpha weighting
             loss = (self.alpha * distill_loss) + ((1 - self.alpha) * student_loss)
+
+            # Log losses periodically
+            if self.state.global_step % 100 == 0:
+                print(f"\nStep {self.state.global_step}:")
+                print(f"Student Loss: {student_loss.item():.4f}")
+                print(f"Distill Loss: {distill_loss.item():.4f}")
+                print(f"Combined Loss: {loss.item():.4f}")
         else:
-            # During evaluation, only use student loss
             loss = student_loss
 
         return (loss, outputs) if return_outputs else loss
@@ -177,126 +202,97 @@ def distill_whisper(cfg: DictConfig):
     student_model.config.eos_token_id = teacher_model.config.eos_token_id
     student_model.resize_token_embeddings(teacher_model.config.vocab_size)
 
-    # Load dataset
-    logger.info("Loading dataset...")
-    train_dataset = load_dataset(
-        cfg.dataset.name,
-        split=cfg.dataset.train_split,
-        streaming=True
-    ).shuffle(seed=cfg.dataset.seed)
+    # After loading models and before loading dataset
+    # Set forced decoder IDs for Danish
+    forced_decoder_ids = processor.get_decoder_prompt_ids(language="da", task="transcribe")
+    teacher_model.config.forced_decoder_ids = forced_decoder_ids
+    teacher_model.generation_config.forced_decoder_ids = forced_decoder_ids
+    student_model.config.forced_decoder_ids = forced_decoder_ids
+    student_model.generation_config.forced_decoder_ids = forced_decoder_ids
 
-    eval_dataset = load_dataset(
-        cfg.dataset.name,
-        split=cfg.dataset.eval_split,
-        streaming=True
-    ).shuffle(seed=cfg.dataset.seed)
+    # Set generation config
+    teacher_model.generation_config.language = "da"
+    teacher_model.generation_config.task = "transcribe"
+    student_model.generation_config.language = "da"
+    student_model.generation_config.task = "transcribe"
 
-    # Convert streaming datasets to regular datasets with limited samples
-    logger.info(f"Taking {cfg.dataset.train_size} training samples...")
-    train_data = []
-    pbar = tqdm(
-        desc="Loading train data",
-        total=cfg.dataset.train_size,
-        unit=" samples",
-        ncols=100,
-        bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
-    )
-    
-    for item in train_dataset:
-        train_data.append(item)
-        pbar.update(1)
-        if len(train_data) >= cfg.dataset.train_size:
-            break
-    pbar.close()
+    # Verify teacher model outputs during training
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        # Forward pass for student
+        outputs = model(**inputs)
+        student_loss = outputs.loss
 
-    logger.info(f"Taking {cfg.dataset.val_size} validation samples...")
-    val_data = []
-    pbar = tqdm(
-        desc="Loading validation data",
-        total=cfg.dataset.val_size,
-        unit=" samples",
-        ncols=100,
-        bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
-    )
-    
-    for item in eval_dataset:
-        val_data.append(item)
-        pbar.update(1)
-        if len(val_data) >= cfg.dataset.val_size:
-            break
-    pbar.close()
+        # Only compute distillation loss during training
+        if self.model.training:
+            # Get teacher predictions first to verify they're correct
+            with torch.no_grad():
+                teacher_pred = self.teacher_model.generate(
+                    inputs["input_features"],
+                    language="da",
+                    task="transcribe"
+                )
+                if self.state.global_step == 0:
+                    teacher_text = self.processor.batch_decode(teacher_pred, skip_special_tokens=True)
+                    print("\nTeacher predictions:")
+                    print(teacher_text[:2])  # Print first two predictions
 
-    logger.info("Creating dataset dictionary...")
-    logger.info("Converting training data to Dataset...")
-    
-    def create_dataset_with_progress(data_list, desc):
-        chunk_size = 500  # Process 500 items at a time
-        chunks = [data_list[i:i + chunk_size] for i in range(0, len(data_list), chunk_size)]
-        
-        all_features = []
-        with tqdm(total=len(data_list), desc=desc) as pbar:
-            for chunk in chunks:
-                chunk_dataset = Dataset.from_list(chunk)
-                all_features.extend([{k: example[k] for k in example} for example in chunk_dataset])
-                pbar.update(len(chunk))
-        
-        return Dataset.from_list(all_features)
-
-    train_dataset = create_dataset_with_progress(train_data, "Creating training dataset")
-    validation_dataset = create_dataset_with_progress(val_data, "Creating validation dataset")
-
-    logger.info("Combining into DatasetDict...")
-    dataset = DatasetDict({
-        'train': train_dataset,
-        'validation': validation_dataset
-    })
+    # Load preprocessed dataset
+    dataset = load_dataset(cfg)
 
     logger.info(f"Train size: {len(dataset['train'])}")
     logger.info(f"Validation size: {len(dataset['validation'])}")
 
-    # Initialize the Audio feature once
-    audio_feature = Audio(sampling_rate=16000)
+    # # Cast audio column without loading data into memory
+    # logger.info("Casting audio column using cast_column...")
+    # dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
-    def transform_fn(examples):
-        # Load and process audio data
-        audios = []
-        for audio in examples["audio"]:
-            if not isinstance(audio, dict) or "array" not in audio:
-                audio_array = audio_feature.decode_example(audio)["array"]
-            else:
-                audio_array = audio["array"]
-            audios.append(audio_array)
-        
-        # Process input features
-        input_features = processor.feature_extractor(
-            audios,
-            sampling_rate=16000,
-            return_tensors="np",
-            padding=True
-        ).input_features
+    def transform_fn(example):
+        # Handle both single examples and batches
+        if isinstance(example["audio"], list):
+            # Batch processing
+            audio_arrays = [
+                np.array(audio["array"], dtype=np.float32) 
+                for audio in example["audio"]
+            ]
+            
+            input_features = processor.feature_extractor(
+                audio_arrays,
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features
 
-        # Tokenize labels
-        labels = processor.tokenizer(
-            [text.lower() for text in examples["text"]],
-            return_tensors="np",
-            padding=True
-        ).input_ids
+            labels = processor.tokenizer(
+                [text.lower() for text in example["text"]],
+                return_tensors="np"
+            ).input_ids
 
-        return {
-            "input_features": input_features,
-            "labels": labels
-        }
+            return {
+                "input_features": input_features,
+                "labels": labels
+            }
+        else:
+            # Single example processing
+            audio_array = np.array(example["audio"]["array"], dtype=np.float32)
+            input_features = processor.feature_extractor(
+                audio_array,
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features[0]
 
+            labels = processor.tokenizer(
+                example["text"].lower(),
+                return_tensors="np"
+            ).input_ids[0]
 
-    dataset = dataset.map(
-        transform_fn,
-        batched=True,
-        batch_size=16,
-        num_proc=4,
-        remove_columns=dataset["train"].column_names
-    )
+            return {
+                "input_features": input_features,
+                "labels": labels
+            }
 
-
+    # Apply the transformation lazily
+    logger.info("Applying lazy transformations with set_transform...")
+    dataset['train'].set_transform(transform_fn)
+    dataset['validation'].set_transform(transform_fn)
 
     # Create data collator
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)

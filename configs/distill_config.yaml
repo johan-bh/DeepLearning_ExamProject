@@ -12,9 +12,8 @@ dataset:
   name: "alexandrainst/coral"
   train_split: "train"
   eval_split: "val"
-  train_samples: 500
-  eval_samples: 100
-  token_batch_size: 256
+  train_size: 500
+  val_size: 100
   num_proc: 20
   seed: 42
 
@@ -22,15 +21,17 @@ training:
   output_dir: "models/distilled-whisper-turbo-latest"
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 8
-  eval_accumulation_steps: 10
+  eval_accumulation_steps: 4
   gradient_accumulation_steps: 1
   learning_rate: 1e-5
   num_train_epochs: 2
+  train_samples: 5000
+  val_samples: 500
   dataloader_workers: 4
   fp16: false
   bf16: true
   logging_steps: 1000
-  temperature: 5
-  alpha: 0.4
+  temperature: 1
+  alpha: 0.8
   warmup_steps: 500
   warmup_ratio: 0.1
