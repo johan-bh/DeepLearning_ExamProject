@@ -4,30 +4,33 @@ defaults:
 # Training parameters
 training:
   output_dir: "models/whisper-large-v3-turbo"
-  num_train_epochs: 1
+  num_train_epochs: 2
   batch_size: 16
   gradient_accumulation_steps: 2
   learning_rate: 1e-5
   weight_decay: 0.01
-  warmup_steps: 100
+  warmup_steps: 500
   max_steps: -1
-  fp16: true
+  fp16: false
+  bf16: True
   save_steps: 1000
   eval_steps: 1000
   logging_steps: 1000
 
 # Model parameters
 model:
-  name: "openai/whisper-large-v3-turbo"
-  freeze_encoder: true
+  name: "openai/whisper-large-v3"
+  device: 0
+  fp16: false
 
 # Dataset parameters
 dataset:
   name: "alexandrainst/coral"
   config: null
   sampling_rate: 16000
-  num_proc: 1
+  num_proc: 20
   train_split: "train"
-  eval_split: "test"
-  train_size: 500
+  eval_split: "val"
+  train_size: 1000
   val_size: 100
+  seed: 42

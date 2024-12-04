@@ -13,6 +13,7 @@ from functools import partial
 import hydra
 from omegaconf import DictConfig
 from pathlib import Path
+import logging
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -101,14 +102,21 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
 @hydra.main(config_path="../../configs", config_name="train_config", version_base=None)
 def train_whisper(cfg: DictConfig):
-    print("\n=== Starting Whisper Fine-tuning ===")
+    # Setup logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+    
+    logger.info("=== Starting Whisper Fine-tuning ===")
     
     # Create output directory
     output_dir = Path(cfg.training.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Load tokenizer and processor
-    print("\nLoading tokenizer and processor...")
+    logger.info("\nLoading tokenizer and processor...")
     tokenizer = WhisperTokenizer.from_pretrained(
         cfg.model.name, 
         language="Danish", 
@@ -120,42 +128,40 @@ def train_whisper(cfg: DictConfig):
         language="Danish",
         task="transcribe"
     )
-    processor.tokenizer = tokenizer  # Update tokenizer in processor
+    processor.tokenizer = tokenizer
+    logger.info("✓ Processor loaded")
     
     # Load model
-
-    print("\nLoading model...")
+    logger.info("\nLoading model...")
     model = WhisperForConditionalGeneration.from_pretrained(
         cfg.model.name,
-        device_map="auto",
-        # Remove torch_dtype to load model in FP32
-        # torch_dtype=torch.float16 if cfg.training.fp16 else torch.float32
+        device_map="auto"
     )
-    model.config.use_cache = False  # Important for gradient checkpointing
-        
+    model.config.use_cache = False
+    logger.info("✓ Model loaded")
     
     # Load dataset
-    print("\nLoading dataset...")
-    print(f"Using {cfg.dataset.train_split} split for training")
-    print(f"Using {cfg.dataset.eval_split} split for evaluation")
+    logger.info("\nLoading dataset...")
+    logger.info(f"Using {cfg.dataset.train_split} split for training")
+    logger.info(f"Using {cfg.dataset.eval_split} split for evaluation")
     
     train_dataset = load_dataset(
         cfg.dataset.name,
         cfg.dataset.config,
         split=cfg.dataset.train_split,
         streaming=True
-    )
+    ).shuffle(seed=cfg.dataset.seed)
     
     eval_dataset = load_dataset(
         cfg.dataset.name,
         cfg.dataset.config,
         split=cfg.dataset.eval_split,
         streaming=True
-    )
+    ).shuffle(seed=cfg.dataset.seed)
     
     # Convert streaming datasets to regular datasets
-    train_data = list(train_dataset.take(500))  # Adjust number as needed
-    val_data = list(eval_dataset.take(100))  # Adjust number as needed
+    train_data = list(train_dataset.take(cfg.dataset.train_size))  # Adjust number as needed
+    val_data = list(eval_dataset.take(cfg.dataset.val_size))  # Adjust number as needed
     
     # Create datasets
     dataset = DatasetDict({
@@ -164,21 +170,66 @@ def train_whisper(cfg: DictConfig):
     })
     
     # Cast audio column
+    logger.info("\nCasting audio column...")
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
     
-    print(f"Train size: {len(dataset['train'])}")
-    print(f"Validation size: {len(dataset['validation'])}")
+    def transform_fn(example):
+        # Handle both single examples and batches
+        if isinstance(example["audio"], list):
+            # Batch processing
+            input_features = processor.feature_extractor(
+                [audio["array"] for audio in example["audio"]],
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features
+
+            labels = processor.tokenizer(
+                [text.lower() for text in example["text"]],
+                return_tensors="np"
+            ).input_ids
+
+            return {
+                "input_features": input_features,
+                "labels": labels
+            }
+        else:
+            # Single example processing
+            audio_array = example["audio"]["array"]
+            input_features = processor.feature_extractor(
+                audio_array,
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features[0]
+
+            labels = processor.tokenizer(
+                example["text"].lower(),
+                return_tensors="np"
+            ).input_ids[0]
+
+            return {
+                "input_features": input_features,
+                "labels": labels
+            }
+
+    # Apply the transformation lazily
+    logger.info("\nApplying lazy transformations...")
+    dataset['train'].set_transform(transform_fn)
+    dataset['validation'].set_transform(transform_fn)
     
-    
-    # Preprocess dataset
-    print("\nPreprocessing dataset...")
-    dataset = dataset.map(
-        partial(prepare_dataset, processor=processor),
-        remove_columns=dataset["train"].column_names,
-        num_proc=cfg.dataset.num_proc,
-        desc="Processing dataset",
-        batched=False
+    # Before training, add training info
+    total_train_batch_size = (
+        cfg.training.batch_size
+        * cfg.training.gradient_accumulation_steps
     )
+    
+    total_steps = (
+        (len(dataset['train']) // total_train_batch_size)
+        * cfg.training.num_train_epochs
+    )
+    
+    logger.info(f"Total training samples: {len(dataset['train'])}")
+    logger.info(f"Effective batch size: {total_train_batch_size}")
+    logger.info(f"Expected training steps: {total_steps}")
     
     # Create data collator
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
@@ -192,20 +243,21 @@ def train_whisper(cfg: DictConfig):
         learning_rate=cfg.training.learning_rate,
         num_train_epochs=cfg.training.num_train_epochs,
         fp16=cfg.training.fp16,
+        bf16=cfg.training.bf16,
         evaluation_strategy="epoch",
         save_strategy="epoch",
         logging_steps=cfg.training.logging_steps,
-        remove_unused_columns=True,
+        remove_unused_columns=False,
         label_names=["labels"],
         push_to_hub=False,
         load_best_model_at_end=True,
-        metric_for_best_model="wer",
+        metric_for_best_model="cer",
         greater_is_better=False,
-        eval_accumulation_steps=None,  # Disable eval accumulation
-        predict_with_generate=True,    # Important for seq2seq evaluation
-        generation_max_length=256,     # Set max generation length
-        generation_num_beams=1,        # Use greedy decoding for faster eval
-        include_inputs_for_metrics=True,
+        eval_accumulation_steps=None,
+        predict_with_generate=True,
+        generation_max_length=256,
+        generation_num_beams=1,
+        include_for_metrics=["input_features", "labels"],
         gradient_checkpointing=False,
         optim="adafactor"
     )
@@ -220,16 +272,16 @@ def train_whisper(cfg: DictConfig):
         compute_metrics=partial(compute_metrics, processor=processor),
     )
     
-    # Train model
-    print("\n=== Starting training ===")
+    # Before starting training
+    logger.info("\n=== Starting training ===")
     trainer.train()
     
-    # Save model and processor
-    print("\nSaving model and processor...")
+    # Save model
+    logger.info("\nSaving model and processor...")
     trainer.save_model()
     processor.save_pretrained(output_dir)
     
-    print("\n=== Training complete! ===")
+    logger.info("\n=== Training complete! ===")
 
 if __name__ == "__main__":
     train_whisper()

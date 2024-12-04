@@ -1,0 +1,20 @@
+syvai/hviske-v2 Baseline Results on alexandrainst/coral (test split)
+Word Error Rate (WER): 0.1119
+Character Error Rate (CER): 0.0420
+
+Example Predictions:
+
+Reference: dickinson forlod iron maiden i 1993 for at fremme en solokarierre
+Prediction: dixon forlod arnmanden i 1993 for at fremme en solokarriere
+
+Reference: også et vel organiseret balletkorps stod kongen til rådighed
+Prediction: også et vel organiseret balletkorps stod kongen til rådighed
+
+Reference: gift med kejser honorius i 408
+Prediction: gift med kejser honorius i 408
+
+Reference: på karrosserisiden blev forlygterne og kofangerne komplet modificeret og tilpasset volkswagens nye koncerndesign
+Prediction: på karrosserisiden blev forlygterne og kofagterne komplet modificeret og tilpasset volkswagens nye koncerndesign
+
+Reference: det er en del af øgruppen dodekaneserne
+Prediction: det er en del af øgruppen dodekaneserne

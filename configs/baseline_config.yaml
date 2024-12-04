@@ -1,0 +1,12 @@
+model:
+  name: "syvai/hviske-v2"
+  device: 0
+  fp16: false
+
+dataset:
+  name: "alexandrainst/coral"
+  config: null
+  split: "test"
+  batch_size: 64
+  max_samples: 2000
+  seed: 42

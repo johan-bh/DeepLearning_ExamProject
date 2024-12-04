@@ -11,18 +11,26 @@ student_model:
 dataset:
   name: "alexandrainst/coral"
   train_split: "train"
-  eval_split: "test"
-  train_samples: 1000
+  eval_split: "val"
+  train_samples: 500
   eval_samples: 100
-  num_proc: 1
+  token_batch_size: 256
+  num_proc: 20
+  seed: 42
 
 training:
-  output_dir: "models/distilled-whisper-turbo"
-  batch_size: 6
-  gradient_accumulation_steps: 2
-  learning_rate: 3e-5
-  num_train_epochs: 1
+  output_dir: "models/distilled-whisper-turbo-latest"
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  eval_accumulation_steps: 10
+  gradient_accumulation_steps: 1
+  learning_rate: 1e-5
+  num_train_epochs: 2
+  dataloader_workers: 4
   fp16: false
-  logging_steps: 500
-  temperature: 4.0  # Temperature for knowledge distillation
-  alpha: 0.5  # Weight for distillation loss (1-alpha for regular loss) 
+  bf16: true
+  logging_steps: 1000
+  temperature: 5
+  alpha: 0.4
+  warmup_steps: 500
+  warmup_ratio: 0.1

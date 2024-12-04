@@ -14,6 +14,9 @@ from functools import partial
 import hydra
 from omegaconf import DictConfig
 from pathlib import Path
+from tqdm.auto import tqdm
+import logging
+import transformers
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -74,9 +77,14 @@ class DistillationTrainer(Seq2SeqTrainer):
                 self.teacher_model.config.decoder_start_token_id
             )
 
+            # Ensure input features are in the correct dtype
+            input_features = inputs["input_features"]
+            if self.teacher_model.dtype == torch.float16:
+                input_features = input_features.to(torch.float16)
+
             # Prepare inputs for teacher
             teacher_inputs = {
-                "input_features": inputs["input_features"],
+                "input_features": input_features,
                 "decoder_input_ids": decoder_input_ids
             }
 
@@ -109,30 +117,8 @@ class DistillationTrainer(Seq2SeqTrainer):
 
         return (loss, outputs) if return_outputs else loss
 
-def prepare_dataset(example, processor):
-    # Load audio
-    audio_array = example["audio"]["array"]
-
-    # Process input features
-    input_features = processor.feature_extractor(
-        audio_array,
-        sampling_rate=16000,
-        return_tensors=None
-    ).input_features[0]
-
-    # Tokenize labels
-    labels = processor.tokenizer(
-        example["text"].lower(),
-        return_tensors=None
-    ).input_ids
-
-    return {
-        "input_features": input_features,
-        "labels": labels
-    }
-
 def compute_metrics(pred, processor):
-    """Compute CER metric during training"""
+    """Compute cer metric during training"""
     metric = evaluate.load("cer")
 
     pred_ids = pred.predictions
@@ -145,20 +131,27 @@ def compute_metrics(pred, processor):
     pred_str = processor.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
     label_str = processor.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
 
-    # Compute CER
+    # Compute cer
     cer = metric.compute(predictions=pred_str, references=label_str)
     return {"cer": cer}
 
 @hydra.main(config_path="../../configs", config_name="distill_config", version_base=None)
 def distill_whisper(cfg: DictConfig):
-    print("\n=== Starting Whisper Knowledge Distillation ===")
+    # Setup logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+    
+    logger.info("=== Starting Whisper Knowledge Distillation ===")
 
     # Create output directory
     output_dir = Path(cfg.training.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load processor and models
-    print("\nLoading processor and models...")
+    logger.info("\nLoading processor and models...")
     processor = WhisperProcessor.from_pretrained(
         cfg.teacher_model.name,
         language="da",
@@ -185,43 +178,128 @@ def distill_whisper(cfg: DictConfig):
     student_model.resize_token_embeddings(teacher_model.config.vocab_size)
 
     # Load dataset
-    print("\nLoading dataset...")
+    logger.info("Loading dataset...")
     train_dataset = load_dataset(
         cfg.dataset.name,
         split=cfg.dataset.train_split,
         streaming=True
-    )
+    ).shuffle(seed=cfg.dataset.seed)
 
     eval_dataset = load_dataset(
         cfg.dataset.name,
         split=cfg.dataset.eval_split,
         streaming=True
-    )
+    ).shuffle(seed=cfg.dataset.seed)
 
     # Convert streaming datasets to regular datasets with limited samples
-    train_data = list(train_dataset.take(cfg.dataset.train_samples))
-    val_data = list(eval_dataset.take(cfg.dataset.eval_samples))
+    logger.info(f"Taking {cfg.dataset.train_samples} training samples...")
+    train_data = []
+    pbar = tqdm(
+        desc="Loading train data",
+        total=cfg.dataset.train_samples,
+        unit=" samples",
+        ncols=100,
+        bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
+    )
+    
+    for item in train_dataset:
+        train_data.append(item)
+        pbar.update(1)
+        if len(train_data) >= cfg.dataset.train_samples:
+            break
+    pbar.close()
 
+    logger.info(f"Taking {cfg.dataset.eval_samples} validation samples...")
+    val_data = []
+    pbar = tqdm(
+        desc="Loading validation data",
+        total=cfg.dataset.eval_samples,
+        unit=" samples",
+        ncols=100,
+        bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
+    )
+    
+    for item in eval_dataset:
+        val_data.append(item)
+        pbar.update(1)
+        if len(val_data) >= cfg.dataset.eval_samples:
+            break
+    pbar.close()
+
+    logger.info("Creating dataset dictionary...")
+    logger.info("Converting training data to Dataset...")
+    
+    def create_dataset_with_progress(data_list, desc):
+        chunk_size = 500  # Process 500 items at a time
+        chunks = [data_list[i:i + chunk_size] for i in range(0, len(data_list), chunk_size)]
+        
+        all_features = []
+        with tqdm(total=len(data_list), desc=desc) as pbar:
+            for chunk in chunks:
+                chunk_dataset = Dataset.from_list(chunk)
+                all_features.extend([{k: example[k] for k in example} for example in chunk_dataset])
+                pbar.update(len(chunk))
+        
+        return Dataset.from_list(all_features)
+
+    train_dataset = create_dataset_with_progress(train_data, "Creating training dataset")
+    validation_dataset = create_dataset_with_progress(val_data, "Creating validation dataset")
+
+    logger.info("Combining into DatasetDict...")
     dataset = DatasetDict({
-        'train': Dataset.from_list(train_data),
-        'validation': Dataset.from_list(val_data)
+        'train': train_dataset,
+        'validation': validation_dataset
     })
 
-    # Cast audio column
+    logger.info(f"Train size: {len(dataset['train'])}")
+    logger.info(f"Validation size: {len(dataset['validation'])}")
+
+    # Cast audio column without loading data into memory
+    logger.info("Casting audio column using cast_column...")
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
-    print(f"Train size: {len(dataset['train'])}")
-    print(f"Validation size: {len(dataset['validation'])}")
+    def transform_fn(example):
+        # Handle both single examples and batches
+        if isinstance(example["audio"], list):
+            # Batch processing
+            input_features = processor.feature_extractor(
+                [audio["array"] for audio in example["audio"]],
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features
 
-    # Preprocess datasets
-    print("\nPreprocessing datasets...")
-    dataset = dataset.map(
-        partial(prepare_dataset, processor=processor),
-        remove_columns=dataset["train"].column_names,
-        num_proc=cfg.dataset.num_proc,
-        desc="Processing datasets",
-        batched=False
-    )
+            labels = processor.tokenizer(
+                [text.lower() for text in example["text"]],
+                return_tensors="np"
+            ).input_ids
+
+            return {
+                "input_features": input_features,
+                "labels": labels
+            }
+        else:
+            # Single example processing
+            audio_array = example["audio"]["array"]
+            input_features = processor.feature_extractor(
+                audio_array,
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features[0]
+
+            labels = processor.tokenizer(
+                example["text"].lower(),
+                return_tensors="np"
+            ).input_ids[0]
+
+            return {
+                "input_features": input_features,
+                "labels": labels
+            }
+
+    # Apply the transformation lazily
+    logger.info("Applying lazy transformations with set_transform...")
+    dataset['train'].set_transform(transform_fn)
+    dataset['validation'].set_transform(transform_fn)
 
     # Create data collator
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
@@ -229,19 +307,24 @@ def distill_whisper(cfg: DictConfig):
     # Define training arguments
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(output_dir),
-        per_device_train_batch_size=cfg.training.batch_size,
-        per_device_eval_batch_size=cfg.training.batch_size,
+        per_device_train_batch_size=cfg.training.per_device_train_batch_size,
+        per_device_eval_batch_size=cfg.training.per_device_eval_batch_size,
+        eval_accumulation_steps=cfg.training.eval_accumulation_steps,
         gradient_accumulation_steps=cfg.training.gradient_accumulation_steps,
         learning_rate=cfg.training.learning_rate,
         num_train_epochs=cfg.training.num_train_epochs,
+        max_steps=-1,
+        warmup_steps=cfg.training.warmup_steps,
+        warmup_ratio=cfg.training.warmup_ratio,
         fp16=cfg.training.fp16,
+        bf16=cfg.training.bf16,
         eval_strategy="epoch",
-        save_strategy="epoch",
+        save_strategy="no",
         logging_steps=cfg.training.logging_steps,
         remove_unused_columns=False,
         label_names=["labels"],
         push_to_hub=False,
-        load_best_model_at_end=True,
+        load_best_model_at_end=False,
         metric_for_best_model="cer",
         greater_is_better=False,
         predict_with_generate=True,
@@ -249,8 +332,88 @@ def distill_whisper(cfg: DictConfig):
         generation_num_beams=1,
         include_for_metrics=["input_features", "labels"],
         max_grad_norm=1.0,
-        dataloader_num_workers=0
+        dataloader_num_workers=cfg.training.dataloader_workers
     )
+
+    # Before creating the trainer
+    total_train_batch_size = (
+        cfg.training.per_device_train_batch_size
+        * cfg.training.gradient_accumulation_steps
+    )
+    
+    total_steps = (
+        (len(dataset['train']) // total_train_batch_size)
+        * cfg.training.num_train_epochs
+    )
+    
+    logger.info(f"Total training samples: {len(dataset['train'])}")
+    logger.info(f"Effective batch size: {total_train_batch_size}")
+    logger.info(f"Expected training steps: {total_steps}")
+
+    # After training arguments, before creating trainer
+    class MetricCallback(transformers.TrainerCallback):
+        def __init__(self, output_dir):
+            self.output_dir = Path(output_dir)
+            self.results = {
+                'train_loss': [],
+                'eval_loss': [],
+                'eval_cer': [],
+                'learning_rate': [],
+                'epoch': []
+            }
+            
+        def on_evaluate(self, args, state, control, metrics, **kwargs):
+            # Store metrics
+            self.results['eval_loss'].append(metrics.get('eval_loss', None))
+            self.results['eval_cer'].append(metrics.get('eval_cer', None))
+            self.results['epoch'].append(state.epoch)
+            
+        def on_log(self, args, state, control, logs, **kwargs):
+            # Store training metrics
+            if 'loss' in logs:
+                self.results['train_loss'].append(logs['loss'])
+            if 'learning_rate' in logs:
+                self.results['learning_rate'].append(logs['learning_rate'])
+                
+        def on_train_end(self, args, state, control, **kwargs):
+            # Save results to file
+            results_file = self.output_dir / 'training_results.txt'
+            
+            with open(results_file, 'w') as f:
+                f.write("=== Knowledge Distillation Results ===\n\n")
+                
+                # Write training configuration
+                f.write("Training Configuration:\n")
+                f.write(f"Teacher Model: {cfg.teacher_model.name}\n")
+                f.write(f"Student Model: {cfg.student_model.name}\n")
+                f.write(f"Temperature: {cfg.training.temperature}\n")
+                f.write(f"Alpha: {cfg.training.alpha}\n")
+                f.write(f"Training Samples: {len(dataset['train'])}\n")
+                f.write(f"Validation Samples: {len(dataset['validation'])}\n")
+                f.write(f"Batch Size: {cfg.training.per_device_train_batch_size}\n")
+                f.write(f"Learning Rate: {cfg.training.learning_rate}\n")
+                f.write(f"Epochs: {cfg.training.num_train_epochs}\n\n")
+                
+                # Write final metrics
+                f.write("Final Results:\n")
+                if self.results['eval_cer']:
+                    f.write(f"Best CER: {min(self.results['eval_cer'])}\n")
+                    f.write(f"Final CER: {self.results['eval_cer'][-1]}\n")
+                if self.results['eval_loss']:
+                    f.write(f"Best Loss: {min(self.results['eval_loss'])}\n")
+                    f.write(f"Final Loss: {self.results['eval_loss'][-1]}\n\n")
+                
+                # Write detailed metrics per epoch
+                f.write("Detailed Results per Epoch:\n")
+                for i in range(len(self.results['epoch'])):
+                    f.write(f"\nEpoch {self.results['epoch'][i]}:\n")
+                    if i < len(self.results['eval_cer']):
+                        f.write(f"  CER: {self.results['eval_cer'][i]}\n")
+                    if i < len(self.results['eval_loss']):
+                        f.write(f"  Eval Loss: {self.results['eval_loss'][i]}\n")
+
+    # Create the callback
+    metric_callback = MetricCallback(output_dir)
 
     # Create trainer
     trainer = DistillationTrainer(
@@ -263,18 +426,19 @@ def distill_whisper(cfg: DictConfig):
         eval_dataset=dataset["validation"],
         data_collator=data_collator,
         compute_metrics=partial(compute_metrics, processor=processor),
+        callbacks=[metric_callback]  # Add the callback here
     )
 
     # Train model
-    print("\n=== Starting training ===")
+    logger.info("\n=== Starting training ===")
     trainer.train()
 
     # Save model and processor
-    print("\nSaving model and processor...")
+    logger.info("\nSaving model and processor...")
     trainer.save_model()
     processor.save_pretrained(output_dir)
 
-    print("\n=== Training complete! ===")
+    logger.info("\n=== Training complete! ===")
 
 if __name__ == "__main__":
     distill_whisper()

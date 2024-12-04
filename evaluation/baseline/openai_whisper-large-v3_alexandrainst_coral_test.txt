@@ -1,20 +1,20 @@
-openai/whisper-large-v3-turbo Baseline Results on alexandrainst/coral (test split)
-Word Error Rate (WER): 0.4984
-Character Error Rate (CER): 0.1749
+openai/whisper-large-v3 Baseline Results on alexandrainst/coral (test split)
+Word Error Rate (WER): 0.4576
+Character Error Rate (CER): 0.1555
 
 Example Predictions:
 
 Reference: dickinson forlod iron maiden i 1993 for at fremme en solokarierre
-Prediction:  Dickson forlod Iron Maiden i 1993 for at fremme en solokarriere.
+Prediction:  Dixon forlod Iron Maiden i 1993 for at fremme en solokarriere.
 
 Reference: også et vel organiseret balletkorps stod kongen til rådighed
 Prediction:  Også et velorganiseret balletkorps stod kongen til rådighed.
 
 Reference: gift med kejser honorius i 408
-Prediction:  Gift med kejser Holorius i 408.
+Prediction:  Gift ved kejser Honorius i 408.
 
 Reference: på karrosserisiden blev forlygterne og kofangerne komplet modificeret og tilpasset volkswagens nye koncerndesign
-Prediction:  På karosserisiden blev forlygterne og kofrakkene komplet modificeret og tilpasset Volkswagen's nye koncerndesign.
+Prediction:  På karosserisiden blev forlygterne og kofakkerne komplet modificeret og tilpasset Volkswagen's nye koncerndesign.
 
 Reference: det er en del af øgruppen dodekaneserne
-Prediction:  Det er en del af Ø-gruppen, då det kardiserne.
+Prediction:  Det er en del af ø-gruppen, du er det kan læserne.

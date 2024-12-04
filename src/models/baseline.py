@@ -1,12 +1,18 @@
 import torch
 from datasets import load_dataset, config
-from transformers import pipeline
+from transformers import WhisperProcessor, WhisperForConditionalGeneration, pipeline
 from jiwer import wer, cer
 from tqdm import tqdm
 import numpy as np
 import os
 import yaml
 from pathlib import Path
+import hydra
+import logging
+from omegaconf import DictConfig
+from itertools import islice
+from datasets import Dataset
+from datasets.features import Audio
 
 # Set custom cache directory
 config.HF_DATASETS_CACHE = "data/cached_datasets"  # relative to project root
@@ -71,153 +77,219 @@ def load_config(config_path="configs/model_config.yaml"):
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
     
+def batch_iterator(dataset, batch_size):
+    """Create batches from dataset"""
+    dataset_iter = iter(dataset)
+    while True:
+        batch = list(islice(dataset_iter, batch_size))
+        if not batch:
+            break
+        yield batch
 
-def evaluate_whisper(config_path="configs/model_config.yaml"):
-    # Load configurations
-    config = load_config(config_path)
-    model_config = config['baseline_model']
+def load_model_and_processor(cfg):
+    """Load model and processor from config"""
+    processor = WhisperProcessor.from_pretrained(
+        cfg.model.name,
+        language="da",
+        task="transcribe"
+    )
     
-    # Extract parameters from config
-    model_name = model_config['name']
-    dataset_name = model_config['dataset_name']
-    dataset_config = model_config.get('dataset_config')
-    label_column = model_config.get('label_column', 'text')
-    batch_size = model_config['batch_size']
-    device = model_config['device']
-    max_samples = model_config.get('max_test_samples', None)
+    model = WhisperForConditionalGeneration.from_pretrained(
+        cfg.model.name,
+        device_map=f"cuda:{cfg.model.device}",
+        torch_dtype=torch.float16 if cfg.model.fp16 else torch.float32
+    )
     
-    # Use configured splits or fallback to defaults
-    split = model_config.get('eval_split', 'validation')  # Use validation as test set
+    # Set forced decoder IDs for Danish
+    forced_decoder_ids = processor.get_decoder_prompt_ids(language="da", task="transcribe")
+    model.config.forced_decoder_ids = forced_decoder_ids
+    model.generation_config.forced_decoder_ids = forced_decoder_ids
     
-    try:
-        # Load dataset with streaming enabled
-        if dataset_config:
-            dataset = load_dataset(
-                dataset_name, 
-                dataset_config, 
-                split=split,  # Use the configured split
-                streaming=True
-            )
+    return model, processor
+
+@hydra.main(config_path="../../configs", config_name="baseline_config", version_base=None)
+def evaluate_baseline(cfg: DictConfig):
+    # Setup logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+    
+    logger.info("=== Starting Baseline Model Evaluation ===")
+
+    # Create output directory
+    output_dir = Path("evaluation/baseline")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load dataset in streaming mode
+    logger.info(f"\nStep 1/4: Loading dataset '{cfg.dataset.name}' in streaming mode...")
+    dataset = load_dataset(
+        cfg.dataset.name,
+        cfg.dataset.config,
+        split=cfg.dataset.split,
+        streaming=True
+    )
+    logger.info(f"✓ Dataset loaded successfully in streaming mode")
+
+    # Convert streaming dataset to regular dataset with seed for reproducibility
+    logger.info(f"Taking {cfg.dataset.max_samples} samples...")
+    data = []
+    pbar = tqdm(
+        desc="Loading data",
+        total=cfg.dataset.max_samples,
+        unit=" samples",
+        ncols=100,
+        bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
+    )
+    
+    # Use seed for reproducible sampling
+    dataset = dataset.shuffle(seed=cfg.dataset.seed)
+    
+    for item in dataset:
+        data.append(item)
+        pbar.update(1)
+        if len(data) >= cfg.dataset.max_samples:
+            break
+    pbar.close()
+
+    # Create dataset
+    logger.info("Creating dataset...")
+    dataset = Dataset.from_list(data)
+    
+    # Cast audio column
+    logger.info("Casting audio column...")
+    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
+    def transform_fn(example):
+        # Handle both single examples and batches
+        if isinstance(example["audio"], list):
+            # Batch processing
+            input_features = processor.feature_extractor(
+                [audio["array"] for audio in example["audio"]],
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features
+
+            return {
+                "input_features": input_features,
+                "text": [text.lower() for text in example["text"]],
+                "dialect": example["dialect"]
+            }
         else:
-            dataset = load_dataset(
-                dataset_name, 
-                split=split,  # Use the configured split
-                streaming=True
-            )
-        
-        # Convert to iterator and take only what we need
-        dataset = dataset.take(max_samples) if max_samples else dataset
-        dataset = list(dataset)
-        print(f"Dataset size: {len(dataset)}")
-        
-        # Print available columns for debugging
-        # print(f"Available columns: {dataset[0].keys()}")
-        
-        # Create the pipeline
-        asr_pipeline = pipeline(
-            "automatic-speech-recognition", 
-            model=model_name,
-            torch_dtype=torch.float16,
-            device=device
-        )
-        
-        # Initialize lists for predictions and references
-        predictions = []
-        references = []  # Initialize references here instead of upfront
+            # Single example processing
+            audio_array = example["audio"]["array"]
+            input_features = processor.feature_extractor(
+                audio_array,
+                sampling_rate=16000,
+                return_tensors="np"
+            ).input_features[0]
 
-        # Process audio files in batches
-        for i in tqdm(range(0, len(dataset), batch_size), desc="Processing audio"):
-            batch_indices = range(i, min(i + batch_size, len(dataset)))
+            return {
+                "input_features": input_features,
+                "text": example["text"].lower(),
+                "dialect": example["dialect"]
+            }
+
+    # Apply the transformation lazily
+    logger.info("Applying lazy transformations...")
+    dataset.set_transform(transform_fn)
+
+    # Load model and processor
+    logger.info(f"\nStep 2/4: Loading model from {cfg.model.name}...")
+    model, processor = load_model_and_processor(cfg)
+    logger.info(f"✓ Model loaded successfully on {next(model.parameters()).device}")
+
+    logger.info("\nStep 3/4: Processing audio samples...")
+    # Initialize lists
+    predictions = []
+    references = []
+    dialects = []
+
+    # Create batch iterator
+    batch_size = cfg.dataset.batch_size
+    batch_iter = batch_iterator(dataset, batch_size)
+
+    # Calculate total number of samples to process
+    total_samples = len(dataset)
+    
+    # Create progress bar
+    pbar = tqdm(
+        total=cfg.dataset.max_samples,
+        desc="Processing audio samples",
+        unit=" samples",
+        ncols=100,
+        bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
+    )
+
+    # Process batches
+    sample_count = 0
+    for i in range(0, len(dataset), cfg.dataset.batch_size):
+        try:
+            # Get batch
+            batch = dataset[i:i + cfg.dataset.batch_size]
             
-            # Get audio arrays and ensure consistent format
-            audio_inputs = []
-            batch_references = []  # Collect references corresponding to valid audio inputs
-            for j in batch_indices:
-                audio = dataset[j]["audio"]
-                # Ensure audio is a dict with array and sampling_rate
-                if isinstance(audio, dict) and "array" in audio and "sampling_rate" in audio:
-                    audio_inputs.append({
-                        "array": audio["array"],
-                        "sampling_rate": audio["sampling_rate"]
-                    })
-                    # Append the corresponding reference
-                    batch_references.append(dataset[j][label_column].lower())
-                else:
-                    print(f"Warning: Skipping malformed audio at index {j}")
-                    continue
-            
-            if not audio_inputs:
-                continue  # Skip the batch if no valid audio inputs
-            
-            # Get transcriptions
-            try:
-                outputs = asr_pipeline(
-                    audio_inputs,
-                    batch_size=len(audio_inputs),  # Use actual batch size
-                    generate_kwargs={
-                        "language": "da",
-                        "task": "transcribe",
-                        "num_beams": 1,
-                        "max_length": 256
-                    }
+            # Stack input features
+            input_features = torch.from_numpy(
+                np.stack(batch["input_features"])
+            ).to(model.device)
+
+            # Generate transcriptions
+            with torch.no_grad():
+                outputs = model.generate(
+                    input_features,
+                    language="da",
+                    task="transcribe"
                 )
-                
-                # Store predictions
-                if isinstance(outputs, list):
-                    batch_predictions = [output["text"].lower() for output in outputs]
-                elif isinstance(outputs, dict):
-                    batch_predictions = [outputs["text"].lower()]
-                else:
-                    print(f"Unexpected output type: {type(outputs)}")
-                    continue
-                    
-                predictions.extend(batch_predictions)
-                references.extend(batch_references)
-                
-            except Exception as e:
-                print(f"Error processing batch {i}: {str(e)}")
-                continue
 
-        
-        # Add this before the WER calculation
-        if len(references) != len(predictions):
-            print("\nDetailed length analysis:")
-            print(f"References length: {len(references)}")
-            print(f"Predictions length: {len(predictions)}")
-            print("\nFirst few mismatched items:")
-            for i in range(min(len(references), len(predictions), 5)):
-                if references[i] != predictions[i]:
-                    print(f"\nIndex {i}:")
-                    print(f"Reference: {references[i]}")
-                    print(f"Prediction: {predictions[i]}")
-        
-        # Calculate WER and CER
-        word_error_rate = wer(references, predictions)
-        character_error_rate = cer(references, predictions)
-        
-        print(f"\nResults for {model_name} on {dataset_name}:")
-        print(f"Word Error Rate (WER): {word_error_rate:.4f}")
-        print(f"Character Error Rate (CER): {character_error_rate:.4f}")
-        
-        # Save results
-        save_results(
-            predictions=predictions,
-            references=references,
-            word_error_rate=word_error_rate,
-            character_error_rate=character_error_rate,
-            model_name=model_name,
-            dataset_name=dataset_name,
-            dataset_config=dataset_config,
-            split=split
-        )
-        
-    except KeyError as e:
-        print(f"Error: Column '{label_column}' not found in dataset.")
-        print(f"Available columns: {dataset[0].keys()}")
-        raise
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise
+            # Decode predictions
+            batch_predictions = processor.batch_decode(outputs, skip_special_tokens=True)
+            batch_references = batch["text"]
+
+            # Store results
+            predictions.extend(batch_predictions)
+            references.extend(batch_references)
+            if "dialect" in batch:  # Check if dialect exists
+                dialects.extend(batch["dialect"])
+            else:
+                dialects.extend(["Unknown"] * len(batch_predictions))
+            
+            
+
+            # Update progress
+            processed_samples = len(batch_predictions)
+            pbar.update(processed_samples)
+            
+            sample_count += processed_samples
+
+        except Exception as e:
+            logger.error(f"\nError processing batch: {str(e)}")
+            continue
+
+    pbar.close()
+
+    # Calculate metrics
+    logger.info("\nStep 4/4: Calculating metrics...")
+    word_error_rate = wer(references, predictions)
+    character_error_rate = cer(references, predictions)
+
+    logger.info(f"\nResults:")
+    logger.info(f"Word Error Rate (WER): {word_error_rate:.4f}")
+    logger.info(f"Character Error Rate (CER): {character_error_rate:.4f}")
+
+    # Save results
+    save_results(
+        predictions=predictions,
+        references=references,
+        word_error_rate=word_error_rate,
+        character_error_rate=character_error_rate,
+        model_name=cfg.model.name,
+        dataset_name=cfg.dataset.name,
+        dataset_config=cfg.dataset.config,
+        split=cfg.dataset.split
+    )
+
+    logger.info("\n=== Evaluation complete! ===")
 
 if __name__ == "__main__":
-    evaluate_whisper()
+    evaluate_baseline()

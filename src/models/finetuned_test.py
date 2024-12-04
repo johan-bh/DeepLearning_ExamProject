@@ -98,21 +98,30 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     # Initialize lists
     predictions = []
     references = []
-    dialects = []  # New list to store dialects
+    dialects = []
+    max_samples = 100
 
     # Create batch iterator
     batch_size = config['dataset']['batch_size']
     batch_iter = batch_iterator(dataset, batch_size)
 
-    # Limit the number of samples for debugging
-    max_samples = 100
-    sample_count = 0
+    # Calculate total number of samples to process
+    total_samples = min(max_samples, 100)  # Using max_samples or 100 as default
+    
+    # Create progress bar
+    pbar = tqdm(
+        total=total_samples,
+        desc="Processing audio samples",
+        unit=" samples",
+        ncols=100,
+        bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
+    )
 
-    # Calculate max_length_samples
-    max_length_samples = 30 * processor.feature_extractor.sampling_rate  # 30 seconds * 16000 Hz
+    sample_count = 0
+    max_length_samples = 30 * processor.feature_extractor.sampling_rate
     target_sampling_rate = processor.feature_extractor.sampling_rate
 
-    for batch in tqdm(batch_iter, desc="Processing batches"):
+    for batch in batch_iter:
         try:
             # Get audio arrays, transcriptions, and dialects from the batch
             audio_arrays = []
@@ -175,15 +184,20 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
                     references.append(ref.lower())
                     dialects.append(dialect)
 
-            # Update sample count and check limit
-            sample_count += len(batch_predictions)
+            # Update progress bar with actual processed samples
+            processed_samples = len(batch_predictions)
+            pbar.update(processed_samples)
+            
+            sample_count += processed_samples
             if sample_count >= max_samples:
-                print(f"Reached maximum sample limit of {max_samples}. Stopping.")
+                print(f"\nReached maximum sample limit of {max_samples}. Stopping.")
                 break
 
         except Exception as e:
             print(f"\nError processing batch: {str(e)}")
             continue
+
+    pbar.close()
 
     print("\nStep 4/4: Calculating final metrics...")
 

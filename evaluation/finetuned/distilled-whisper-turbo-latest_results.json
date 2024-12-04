@@ -1,34 +1,34 @@
 {
-  "model_path": "syvai/hviske-v2",
+  "model_path": "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-latest",
   "metrics": {
-    "wer": 0.09300595238095238,
-    "cer": 0.035144927536231885
+    "wer": 0.9672619047619048,
+    "cer": 0.7745169082125604
   },
   "examples": [
     {
       "dialect": "vestjysk",
       "reference": "normannerne er en dansk film fra 1976",
-      "prediction": "nomaner er en dansk film fra 1976"
+      "prediction": "i denne skabte i denne skabte"
     },
     {
       "dialect": "vestjysk",
       "reference": "begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne",
-      "prediction": "børn og klynger støtter sig af klyngeorganisationerne til vækst og fremme af industrien"
+      "prediction": "i denne skabte i denne skabte"
     },
     {
       "dialect": "vestjysk",
       "reference": "i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen",
-      "prediction": "i mildere tilfælde kan smagten klares med paracetamol og ibuprofen"
+      "prediction": "i denne skabte i denne skabte"
     },
     {
       "dialect": "vestjysk",
       "reference": "grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond",
-      "prediction": "grant at underlægge lees hær gennem udmattelsen ved at fastslås lige omkring hovedstaden richmond"
+      "prediction": "hanske største af denne største af denne største af"
     },
     {
       "dialect": "vestjysk",
       "reference": "i 1999 blev herning rejser fusioneret med falk lauritsen",
-      "prediction": "i 1999 blev herning racer fusioneret med falck lauridsen"
+      "prediction": "i denne skabte i denne skabte"
     }
   ]
 }
