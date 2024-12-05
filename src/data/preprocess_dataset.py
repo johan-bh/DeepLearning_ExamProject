@@ -1,11 +1,28 @@
+import os 
 import hydra
 from omegaconf import DictConfig
-from datasets import load_dataset, Dataset, DatasetDict, load_from_disk
+from datasets import load_dataset, DatasetDict
 import logging
 from pathlib import Path
 from tqdm.auto import tqdm
 from transformers import WhisperProcessor
 import numpy as np
+import datasets
+import time
+from huggingface_hub.utils import HfHubHTTPError
+from tenacity import retry, stop_after_attempt, wait_exponential
+from huggingface_hub import HfFileSystem
+from datasets.download.download_manager import DownloadMode
+from datasets import load_dataset, Audio, Dataset, DatasetDict
+
+# Set cache directories before importing HuggingFace libraries
+cache_dir = Path("/ephemeral/huggingface_cache")
+cache_dir.mkdir(parents=True, exist_ok=True)
+
+# Force HuggingFace to use our cache directory
+os.environ["HF_HOME"] = str(cache_dir)
+os.environ["TRANSFORMERS_CACHE"] = str(cache_dir / "transformers")
+os.environ["HF_DATASETS_CACHE"] = str(cache_dir / "datasets")
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +31,20 @@ def setup_logging():
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
+
+# Add retry decorator for handling rate limits (for HuggingFace API, not used atm)
+@retry(
+    stop=stop_after_attempt(5),  # Try 5 times
+    wait=wait_exponential(multiplier=1, min=4, max=60),  # Wait between 4 and 60 seconds
+    retry=lambda retry_state: isinstance(retry_state.outcome.exception(), HfHubHTTPError)
+    and retry_state.outcome.exception().response.status_code == 429
+)
+
+def fetch_item(dataset_iter):
+    try:
+        return next(dataset_iter)
+    except StopIteration:
+        return None
 
 @hydra.main(config_path="../../configs", config_name="train_config", version_base=None)
 def preprocess_dataset(cfg: DictConfig):
@@ -30,95 +61,149 @@ def preprocess_dataset(cfg: DictConfig):
     processor = WhisperProcessor.from_pretrained(
         cfg.model.name,
         language="da",
-        task="transcribe"
+        task="transcribe",
+        cache_dir=cache_dir / "transformers"
     )
     
-    # Load streaming datasets
-    logger.info("\nLoading datasets...")
-    train_dataset = load_dataset(
-        cfg.dataset.name,
-        cfg.dataset.config,
-        split=cfg.dataset.train_split,
-        streaming=True
-    ).shuffle(seed=cfg.dataset.seed)
-    
-    eval_dataset = load_dataset(
-        cfg.dataset.name,
-        cfg.dataset.config,
-        split=cfg.dataset.eval_split,
-        streaming=True
-    ).shuffle(seed=cfg.dataset.seed)
-    
-    # Convert streaming datasets to lists with progress bars
-    logger.info(f"\nTaking {cfg.dataset.train_size} training samples...")
-    train_data = []
-    with tqdm(total=cfg.dataset.train_size, desc="Loading train data") as pbar:
-        for item in train_dataset:
-            train_data.append(item)
-            pbar.update(1)
-            if len(train_data) >= cfg.dataset.train_size:
-                break
-    
-    logger.info(f"\nTaking {cfg.dataset.val_size} validation samples...")
-    val_data = []
-    with tqdm(total=cfg.dataset.val_size, desc="Loading validation data") as pbar:
-        for item in eval_dataset:
-            val_data.append(item)
-            pbar.update(1)
-            if len(val_data) >= cfg.dataset.val_size:
-                break
-    
+    # Added for debugging
+    logger.info(f"Cache directory contents:")
+    for path in cache_dir.glob("*"):
+        logger.info(f"  {path}")
+
+    # Load dataset with correct cache path
+    try:
+        # We load the cached dataset I downloaded in the finetuning script. It's in subfolders of the /ephemeral volume
+        train_dataset = load_dataset(
+            cfg.dataset.name,
+            "read_aloud",
+            split=cfg.dataset.train_split,
+            streaming=False,
+            cache_dir=cache_dir
+        )
+        
+        eval_dataset = load_dataset(
+            cfg.dataset.name,
+            "read_aloud",
+            split=cfg.dataset.eval_split,
+            streaming=False,
+            cache_dir=cache_dir
+        )
+        
+        # Take random samples
+        train_dataset = train_dataset.shuffle(seed=cfg.dataset.seed).select(range(cfg.dataset.train_size))
+        eval_dataset = eval_dataset.shuffle(seed=cfg.dataset.seed).select(range(cfg.dataset.val_size))
+        
+        # Cast column audio (vital for Whisper to work)
+        # Nb: This doesnt work when loading the dataset with streaming=True...
+        train_dataset = train_dataset.cast_column("audio", Audio(sampling_rate=16000))
+        eval_dataset = eval_dataset.cast_column("audio", Audio(sampling_rate=16000))
+        
+        logger.info("Successfully loaded cached dataset!")
+        
+    except Exception as e:
+        logger.error(f"Error loading dataset: {e}")
+        logger.info("Full error:", exc_info=True)
+        raise RuntimeError("Failed to load dataset from cache") from e
+
     # Process audio format
     def prepare_audio(example):
         """Process single audio example"""
         audio = example["audio"]
         
-        if isinstance(audio, dict) and "array" in audio:
-            # Convert array to numpy if it's a list
-            if isinstance(audio["array"], list):
-                audio["array"] = np.array(audio["array"], dtype=np.float32)
-            return example
+        # Extract features using the processor
+        if isinstance(audio, dict):
+            if 'array' in audio:
+                # Already decoded audio
+                audio_array = audio['array']
+            elif 'path' in audio:
+                # Need to decode from path
+                audio_data = datasets.Audio(sampling_rate=16000).decode_example({"path": audio["path"], "bytes": None})
+                audio_array = audio_data['array']
+            else:
+                raise ValueError(f"Unexpected audio format: {audio.keys()}")
+        else:
+            # Direct array
+            audio_array = audio
             
+        # Extract features
+        features = processor.feature_extractor(
+            audio_array,
+            sampling_rate=16000,
+            return_tensors="np"
+        ).input_features[0]
+        
+        # Process text, preserving Danish characters
+        text = example["text"].lower()
+        labels = processor.tokenizer(
+            text,
+            return_tensors="np",
+            padding=False,
+            add_special_tokens=True
+        ).input_ids[0]
+
+        # Convert numpy arrays to lists for compatibility
+        features = features.tolist()
+        labels = labels.tolist()
+
         return {
-            **example,
-            "audio": {
-                "array": np.array(audio["array"], dtype=np.float32),
-                "sampling_rate": 16000
-            }
+            "input_features": features,
+            "labels": labels,
+            "text": text
         }
     
+    # Process train dataset
+    logger.info("\nProcessing training data...")
+    train_dataset = train_dataset.map(
+        prepare_audio, 
+        remove_columns=train_dataset.column_names, 
+        desc="Processing train data"
+    )
+
+    # Process validation dataset
+    logger.info("\nProcessing validation data...")
+    eval_dataset = eval_dataset.map(
+        prepare_audio, 
+        remove_columns=eval_dataset.column_names, 
+        desc="Processing validation data"
+    )
+
     # Create dataset dictionary
-    logger.info("\nCreating dataset dictionary...")
     dataset = DatasetDict({
-        'train': Dataset.from_list([
-            prepare_audio(example) for example in train_data
-        ]),
-        'validation': Dataset.from_list([
-            prepare_audio(example) for example in val_data
-        ])
+        'train': train_dataset,
+        'validation': eval_dataset
     })
     
-    logger.info(f"Train size: {len(dataset['train'])}")
-    logger.info(f"Validation size: {len(dataset['validation'])}")
-    
-    # Add verification step
-    logger.info("\nVerifying processed samples...")
+    # Verify dataset structure before saving
+    logger.info("\nVerifying dataset structure...")
     train_sample = dataset['train'][0]
+    logger.info("Dataset keys:")
+    logger.info(train_sample.keys())
+
+    logger.info("\nSample shapes:")
+    for key, value in train_sample.items():
+        if isinstance(value, list):
+            logger.info(f"{key}: List with length {len(value)}")
+        elif isinstance(value, np.ndarray):
+            logger.info(f"{key}: numpy array with shape {value.shape}")
+        else:
+            logger.info(f"{key}: {type(value)}")
     
-    # Convert audio array to numpy if it's a list
-    if isinstance(train_sample['audio']['array'], list):
-        import numpy as np
-        train_sample['audio']['array'] = np.array(train_sample['audio']['array'], dtype=np.float32)
-    
-    logger.info(f"Sample audio shape: {train_sample['audio']['array'].shape}")
-    logger.info(f"Sample audio type: {train_sample['audio']['array'].dtype}")
-    logger.info(f"Sample text: {train_sample['text']}")
-    
-    # Save processed dataset with size info in filename
-    save_path = processed_dir / f"coral_{cfg.dataset.train_size}_{cfg.dataset.val_size}"
+    # Save processed dataset in the cache directory
+    save_path = cache_dir / f"preprocessed_coral_{cfg.dataset.train_size}_{cfg.dataset.val_size}"
     logger.info(f"\nSaving processed dataset to {save_path}")
     dataset.save_to_disk(str(save_path))
     logger.info("✓ Dataset saved successfully")
-
+    
+    # List cached files
+    logger.info("\nListing cached files with HfFileSystem:")
+    fs = HfFileSystem()
+    try:
+        files = fs.ls(f"datasets/{cfg.dataset.name}", detail=False)
+        logger.info("Found files:")
+        for f in files:
+            logger.info(f"  {f}")
+    except Exception as e:
+        logger.error(f"Error listing files: {e}")
+    
 if __name__ == "__main__":
-    preprocess_dataset() 
+    preprocess_dataset()

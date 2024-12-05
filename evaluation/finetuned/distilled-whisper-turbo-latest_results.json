@@ -1,34 +1,34 @@
 {
   "model_path": "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-latest",
   "metrics": {
-    "wer": 0.9672619047619048,
-    "cer": 0.7745169082125604
+    "wer": 4.734375,
+    "cer": 5.078864734299517
   },
   "examples": [
     {
       "dialect": "vestjysk",
       "reference": "normannerne er en dansk film fra 1976",
-      "prediction": "i denne skabte i denne skabte"
+      "prediction": "trykkerne af denne største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største"
     },
     {
       "dialect": "vestjysk",
       "reference": "begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne",
-      "prediction": "i denne skabte i denne skabte"
+      "prediction": "tterne større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større"
     },
     {
       "dialect": "vestjysk",
       "reference": "i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen",
-      "prediction": "i denne skabte i denne skabte"
+      "prediction": "tterne større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større"
     },
     {
       "dialect": "vestjysk",
       "reference": "grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond",
-      "prediction": "hanske største af denne største af denne største af"
+      "prediction": "jegneren er en del af de flere styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden"
     },
     {
       "dialect": "vestjysk",
       "reference": "i 1999 blev herning rejser fusioneret med falk lauritsen",
-      "prediction": "i denne skabte i denne skabte"
+      "prediction": "jegneren er en del af de flere styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden"
     }
   ]
 }

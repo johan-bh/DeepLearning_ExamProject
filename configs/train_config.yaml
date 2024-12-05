@@ -4,8 +4,8 @@ defaults:
 # Training parameters
 training:
   output_dir: "models/whisper-large-v3-turbo"
-  num_train_epochs: 3
-  batch_size: 16
+  num_train_epochs: 2
+  batch_size: 4
   gradient_accumulation_steps: 1
   learning_rate: 1e-5
   weight_decay: 0.01
@@ -32,6 +32,10 @@ dataset:
   batch_size_per_proc: 8
   train_split: "train"
   eval_split: "val"
-  train_size: 5000
-  val_size: 500
+  train_size: 100
+  val_size: 10
   seed: 42
+
+eval:
+  num_samples: 5
+device: "cuda"  # Use "cuda" for GPU or "cpu" for CPU
