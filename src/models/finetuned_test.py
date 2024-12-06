@@ -103,7 +103,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     predictions = []
     references = []
     dialects = []
-    max_samples = 2000
+    max_samples = 100
 
     # Create batch iterator
     batch_size = config['dataset']['batch_size']
@@ -266,7 +266,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
 
     # Save results
     model_name = os.path.basename(config['model']['path'])
-    output_file = os.path.join(output_dir, f"{model_name}_results.json")
+    output_file = os.path.join(output_dir, f"{model_name}_results_test.json")
 
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)

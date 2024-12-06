@@ -1,5 +1,5 @@
 model:
-  path: "openai/whisper-large-v3-turbo"
+  path: "/home/shadeform/DeepLearning_ExamProject/models/whisper-large-v3-turbo"
   # path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-latest"
   device: 0  # Use GPU 0
   fp16: false

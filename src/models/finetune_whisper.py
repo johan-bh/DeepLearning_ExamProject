@@ -30,6 +30,12 @@ from omegaconf import DictConfig
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.data.data_loader import load_dataset
+import numpy as np
+
+# ADDED: Imports for plotting and W&B logging
+import matplotlib.pyplot as plt
+import wandb
+from transformers import TrainerCallback
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -74,8 +80,60 @@ def compute_metrics(pred, processor):
     label_str = processor.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
 
     cer = metric.compute(predictions=pred_str, references=label_str)
-
     return {"cer": cer}
+
+# ADDED: A callback to plot loss and metrics at the end of training
+class PlotLossCallback(TrainerCallback):
+    def on_train_end(self, args, state, control, **kwargs):
+        log_history = state.log_history
+
+        train_steps = []
+        train_loss = []
+        eval_steps = []
+        eval_loss = []
+        eval_cer = []
+
+        for log in log_history:
+            if "loss" in log and "learning_rate" in log:
+                # Training logs
+                train_steps.append(log["step"])
+                train_loss.append(log["loss"])
+            if "eval_loss" in log:
+                eval_steps.append(log["step"])
+                eval_loss.append(log["eval_loss"])
+            if "eval_cer" in log:
+                eval_cer.append(log["eval_cer"])
+
+        # Plotting
+        fig, ax1 = plt.subplots(figsize=(10,6))
+
+        ax1.set_xlabel("Steps")
+        ax1.set_ylabel("Loss", color="tab:red")
+        ax1.plot(train_steps, train_loss, label="Training Loss", color="tab:red")
+        if eval_loss:
+            ax1.plot(eval_steps, eval_loss, label="Eval Loss", color="tab:purple")
+
+        ax1.tick_params(axis='y', labelcolor="tab:red")
+        lines, labels = ax1.get_legend_handles_labels()
+        ax1.legend(lines, labels, loc="upper left")
+
+        if eval_cer:
+            ax2 = ax1.twinx()
+            ax2.set_ylabel("CER", color="tab:blue")
+            ax2.plot(eval_steps, eval_cer, label="Eval CER", color="tab:blue")
+            ax2.tick_params(axis='y', labelcolor="tab:blue")
+
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax1.legend(lines + lines2, labels + labels2, loc="upper center")
+
+        fig.tight_layout()
+        fig_path = Path(args.output_dir) / "training_progress.png"
+        plt.savefig(fig_path)
+
+        # Log figure to W&B
+        wandb.log({"training_progress": wandb.Image(fig)})
+
+        plt.close(fig)
 
 @hydra.main(config_path="../../configs", config_name="train_config", version_base=None)
 def train_whisper(cfg: DictConfig):
@@ -105,15 +163,33 @@ def train_whisper(cfg: DictConfig):
         cfg.model.name,
         cache_dir=cache_dir / "transformers"
     )
-    model.config.forced_decoder_ids = None
+
+    # ADDED: Set forced decoder IDs & generation config as in distillation
+    forced_decoder_ids = processor.get_decoder_prompt_ids(language="da", task="transcribe")
+    model.config.forced_decoder_ids = forced_decoder_ids
     model.config.suppress_tokens = []
+    # ADDED: Also set generation_config to ensure correct decoding
+    model.generation_config.forced_decoder_ids = forced_decoder_ids
+    model.generation_config.language = "da"
+    model.generation_config.task = "transcribe"
+
     logger.info("✓ Model loaded")
 
     # Load preprocessed dataset
     logger.info("\nLoading preprocessed dataset...")
     dataset = load_dataset(cfg)
+
+    # column cast audio 16khz, for extra safety
+    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
     logger.info(f"Train size: {len(dataset['train'])}")
     logger.info(f"Validation size: {len(dataset['validation'])}")
+
+    # ADDED: Reduce dataset size by a factor of 10 or smaller for debugging
+    reduced_train_size = max(1, len(dataset["train"]) // 5 )
+    reduced_val_size = max(1, len(dataset["validation"]) // 10)
+    dataset["train"] = dataset["train"].select(range(reduced_train_size))
+    dataset["validation"] = dataset["validation"].select(range(reduced_val_size))
 
     def transform_fn(example):
         """Transform function for preprocessed data"""
@@ -137,23 +213,39 @@ def train_whisper(cfg: DictConfig):
     # Data collator
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
+    # ADDED: Initialize W&B run
+    wandb.init(project="my-whisper-finetuning", name="whisper-finetuning-run")
+
+    # Training arguments
     # Training arguments
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(output_dir),
         per_device_train_batch_size=cfg.training.batch_size,
         per_device_eval_batch_size=cfg.training.batch_size,
         gradient_accumulation_steps=cfg.training.gradient_accumulation_steps,
-        learning_rate=cfg.training.learning_rate,
-        num_train_epochs=cfg.training.num_train_epochs,
+        learning_rate=1e-5,  # ADJUSTED: Lowered learning rate for stability
+        num_train_epochs=10,  # ADJUSTED: Increased epochs for better convergence
         fp16=cfg.training.fp16,
         bf16=cfg.training.bf16,
+        warmup_steps=500,  # ADJUSTED: Increased warmup steps
         save_strategy="epoch",
+        save_total_limit=2,   
         logging_steps=cfg.training.logging_steps,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",  # UPDATED: Replaced 'evaluation_strategy' with 'eval_strategy'
         predict_with_generate=True,
         generation_max_length=225,
-        generation_num_beams=5,
+        generation_num_beams=1,  # ADJUSTED: Set to 1 for stable decoding
         push_to_hub=False,
+        # ADDED: Improved settings based on distil script
+        remove_unused_columns=False,
+        label_names=["labels"],
+        metric_for_best_model="cer",
+        greater_is_better=False,
+        optim="adamw_hf",  # Explicitly set optimizer
+        # ADDED: W&B reporting
+        report_to=["wandb"],
+        # Optional: specify a logging dir for local logs
+        logging_dir=str(output_dir / "logs"),
     )
 
     # Trainer
@@ -164,6 +256,7 @@ def train_whisper(cfg: DictConfig):
         eval_dataset=dataset["validation"],
         data_collator=data_collator,
         compute_metrics=partial(compute_metrics, processor=processor),
+        callbacks=[PlotLossCallback()]  # ADDED: callback for plotting at the end
     )
 
     # Train the model
@@ -182,6 +275,8 @@ def train_whisper(cfg: DictConfig):
         json.dump(eval_results, f)
 
     logger.info("\n=== Training complete! ===")
+    # Finish W&B run
+    wandb.finish()
 
 if __name__ == "__main__":
     train_whisper()

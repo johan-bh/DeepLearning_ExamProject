@@ -1,34 +1,34 @@
 {
   "model_path": "/home/shadeform/DeepLearning_ExamProject/models/whisper-large-v3-turbo",
   "metrics": {
-    "wer": 0.3008935598870318,
-    "cer": 0.13659301691216585
+    "wer": 0.8702611625947767,
+    "cer": 0.6480099502487562
   },
   "examples": [
     {
       "dialect": "vestjysk",
       "reference": "normannerne er en dansk film fra 1976",
-      "prediction": "anomaner er en dansk film fra 1976"
+      "prediction": "anomannerne er en dansk film fra 1976"
     },
     {
       "dialect": "vestjysk",
       "reference": "begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne",
-      "prediction": "bag klønger støtter sig kløngorganisationer til vækst og fremme ejer industri"
+      "prediction": "bærger klønger støttede kløngorganisationer til vækst og fremmejere industri"
     },
     {
       "dialect": "vestjysk",
       "reference": "i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen",
-      "prediction": "i mellemløbe tilfælde kan smerten klares med paracetamol og ibuprofen"
+      "prediction": "i mindre tilfælde kan smerten klares med paracetamol og ibuprofen"
     },
     {
       "dialect": "vestjysk",
       "reference": "grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond",
-      "prediction": "grønt er et ødelag liges her gennem og umanget ved at fastlås lige omkring hovedstad richemont"
+      "prediction": "grønt er et ølov liges her gennem og umægles ved at fastlås lige omkring 100 rt"
     },
     {
       "dialect": "vestjysk",
       "reference": "i 1999 blev herning rejser fusioneret med falk lauritsen",
-      "prediction": "i 1999 blev herning rejse fusioneret med falk lauritsen"
+      "prediction": "i 1999 blev herning rejser fusioneret med falk lauritzen i 1999 blev herning rejser fusioneret med falk lauritzen"
     }
   ]
 }
