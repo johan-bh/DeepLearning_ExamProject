@@ -21,6 +21,16 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.data.data_loader import load_dataset
 import numpy as np
+import os
+
+# Set cache directories before importing HuggingFace libraries
+cache_dir = Path("huggingface_cache")
+cache_dir.mkdir(parents=True, exist_ok=True)
+
+# Force HuggingFace to use our cache directory
+os.environ["HF_HOME"] = str(cache_dir)
+os.environ["TRANSFORMERS_CACHE"] = str(cache_dir / "transformers")
+os.environ["HF_DATASETS_CACHE"] = str(cache_dir / "datasets")
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
@@ -301,8 +311,9 @@ def distill_whisper(cfg: DictConfig):
         warmup_ratio=cfg.training.warmup_ratio,
         fp16=cfg.training.fp16,
         bf16=cfg.training.bf16,
-        eval_strategy="epoch",
-        save_strategy="no",
+        save_strategy="epoch",           # Changed back to "epoch"
+        save_total_limit=2,             # Keep only the last 2 checkpoints
+        evaluation_strategy="epoch",     # Changed back to "epoch"
         logging_steps=cfg.training.logging_steps,
         remove_unused_columns=False,
         label_names=["labels"],

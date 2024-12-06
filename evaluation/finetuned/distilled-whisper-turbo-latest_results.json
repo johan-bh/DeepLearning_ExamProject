@@ -1,34 +1,34 @@
 {
   "model_path": "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-latest",
   "metrics": {
-    "wer": 4.734375,
-    "cer": 5.078864734299517
+    "wer": 0.24001111162553823,
+    "cer": 0.09014517791113535
   },
   "examples": [
     {
       "dialect": "vestjysk",
       "reference": "normannerne er en dansk film fra 1976",
-      "prediction": "trykkerne af denne største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største største"
+      "prediction": "numannet er en dansk film fra 1976"
     },
     {
       "dialect": "vestjysk",
       "reference": "begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne",
-      "prediction": "tterne større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større"
+      "prediction": "bagre klønger stødte sig af kløngeorganisationer til vækst og frem af industrien"
     },
     {
       "dialect": "vestjysk",
       "reference": "i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen",
-      "prediction": "tterne større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større større"
+      "prediction": "i imidlere tilfælde kan smerterne klarets med paracetamol og ibuprofen"
     },
     {
       "dialect": "vestjysk",
       "reference": "grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond",
-      "prediction": "jegneren er en del af de flere styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden"
+      "prediction": "grant er at udlæve liges her gennem umiddelse ved at fastlåse liges omkring højre stedet richemont"
     },
     {
       "dialect": "vestjysk",
       "reference": "i 1999 blev herning rejser fusioneret med falk lauritsen",
-      "prediction": "jegneren er en del af de flere styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden af denne styrkerheden"
+      "prediction": "i 1999 blev herning rejser fusioneret med falk lauritsen"
     }
   ]
 }

@@ -8,6 +8,7 @@ import json
 import yaml
 from itertools import islice
 import librosa  # For audio resampling
+from datasets import load_dataset, Audio, Dataset, DatasetDict
 
 def load_config(config_path="configs/test_finetuning.yaml"):
     with open(config_path, 'r') as f:
@@ -89,6 +90,9 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     )
     print(f"✓ Dataset loaded successfully in streaming mode")
 
+    # cast_column
+    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))  
+
     # Load model and processor
     print(f"\nStep 2/4: Loading model from {config['model']['path']}...")
     model, processor = load_model_and_processor(config)
@@ -99,7 +103,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     predictions = []
     references = []
     dialects = []
-    max_samples = 100
+    max_samples = 2000
 
     # Create batch iterator
     batch_size = config['dataset']['batch_size']

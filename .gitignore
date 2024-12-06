@@ -61,6 +61,7 @@ evaluation/**/results/*
 data/cached_datasets/
 processed_datasets/
 cached_datasets/
+huggingface_cache/
 
 models/
 

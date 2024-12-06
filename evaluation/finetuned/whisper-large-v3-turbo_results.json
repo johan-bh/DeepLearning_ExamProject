@@ -1,8 +1,8 @@
 {
   "model_path": "openai/whisper-large-v3-turbo",
   "metrics": {
-    "wer": 0.35714285714285715,
-    "cer": 0.12282608695652174
+    "wer": 0.367563313116348,
+    "cer": 0.1352139782990847
   },
   "examples": [
     {

@@ -10,13 +10,12 @@ import numpy as np
 import datasets
 import time
 from huggingface_hub.utils import HfHubHTTPError
-from tenacity import retry, stop_after_attempt, wait_exponential
 from huggingface_hub import HfFileSystem
 from datasets.download.download_manager import DownloadMode
 from datasets import load_dataset, Audio, Dataset, DatasetDict
 
 # Set cache directories before importing HuggingFace libraries
-cache_dir = Path("/ephemeral/huggingface_cache")
+cache_dir = Path("huggingface_cache")
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 # Force HuggingFace to use our cache directory
@@ -33,12 +32,12 @@ def setup_logging():
     )
 
 # Add retry decorator for handling rate limits (for HuggingFace API, not used atm)
-@retry(
-    stop=stop_after_attempt(5),  # Try 5 times
-    wait=wait_exponential(multiplier=1, min=4, max=60),  # Wait between 4 and 60 seconds
-    retry=lambda retry_state: isinstance(retry_state.outcome.exception(), HfHubHTTPError)
-    and retry_state.outcome.exception().response.status_code == 429
-)
+# @retry(
+#     stop=stop_after_attempt(5),  # Try 5 times
+#     wait=wait_exponential(multiplier=1, min=4, max=60),  # Wait between 4 and 60 seconds
+#     retry=lambda retry_state: isinstance(retry_state.outcome.exception(), HfHubHTTPError)
+#     and retry_state.outcome.exception().response.status_code == 429
+# )
 
 def fetch_item(dataset_iter):
     try:
@@ -52,9 +51,8 @@ def preprocess_dataset(cfg: DictConfig):
     setup_logging()
     logger.info("=== Starting Dataset Preprocessing ===")
     
-    # Define paths
-    processed_dir = Path("processed_datasets")
-    processed_dir.mkdir(exist_ok=True)
+    # Define output path in root directory
+    output_path = Path(f"preprocessed_coral_{cfg.dataset.train_size}_{cfg.dataset.val_size}")
     
     # Load processor for audio settings
     logger.info("\nLoading processor...")
@@ -188,22 +186,19 @@ def preprocess_dataset(cfg: DictConfig):
         else:
             logger.info(f"{key}: {type(value)}")
     
-    # Save processed dataset in the cache directory
-    save_path = cache_dir / f"preprocessed_coral_{cfg.dataset.train_size}_{cfg.dataset.val_size}"
-    logger.info(f"\nSaving processed dataset to {save_path}")
-    dataset.save_to_disk(str(save_path))
+    # Save processed dataset in the root directory
+    logger.info(f"\nSaving processed dataset to {output_path}")
+    dataset.save_to_disk(str(output_path))
     logger.info("✓ Dataset saved successfully")
     
-    # List cached files
-    logger.info("\nListing cached files with HfFileSystem:")
-    fs = HfFileSystem()
-    try:
-        files = fs.ls(f"datasets/{cfg.dataset.name}", detail=False)
-        logger.info("Found files:")
-        for f in files:
-            logger.info(f"  {f}")
-    except Exception as e:
-        logger.error(f"Error listing files: {e}")
-    
+    # List saved files
+    logger.info("\nVerifying saved files:")
+    if output_path.exists():
+        logger.info(f"Dataset saved at: {output_path}")
+        for file in output_path.glob("**/*"):
+            logger.info(f"  {file.relative_to(output_path)}")
+    else:
+        logger.error(f"Failed to find saved dataset at {output_path}")
+
 if __name__ == "__main__":
     preprocess_dataset()

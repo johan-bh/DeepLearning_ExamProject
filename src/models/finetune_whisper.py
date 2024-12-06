@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 # Set cache directories before importing HuggingFace libraries
-cache_dir = Path("/ephemeral/huggingface_cache")
+cache_dir = Path("huggingface_cache")
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 # Force HuggingFace to use our cache directory
@@ -141,10 +141,12 @@ def train_whisper(cfg: DictConfig):
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(output_dir),
         per_device_train_batch_size=cfg.training.batch_size,
+        per_device_eval_batch_size=cfg.training.batch_size,
         gradient_accumulation_steps=cfg.training.gradient_accumulation_steps,
         learning_rate=cfg.training.learning_rate,
         num_train_epochs=cfg.training.num_train_epochs,
         fp16=cfg.training.fp16,
+        bf16=cfg.training.bf16,
         save_strategy="epoch",
         logging_steps=cfg.training.logging_steps,
         evaluation_strategy="epoch",
