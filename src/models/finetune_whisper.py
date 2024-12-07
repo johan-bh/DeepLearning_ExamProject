@@ -186,8 +186,8 @@ def train_whisper(cfg: DictConfig):
     logger.info(f"Validation size: {len(dataset['validation'])}")
 
     # ADDED: Reduce dataset size by a factor of 10 or smaller for debugging
-    reduced_train_size = max(1, len(dataset["train"]) // 5 )
-    reduced_val_size = max(1, len(dataset["validation"]) // 10)
+    reduced_train_size = max(1, len(dataset["train"]) // 1 )
+    reduced_val_size = max(1, len(dataset["validation"]) // 5)
     dataset["train"] = dataset["train"].select(range(reduced_train_size))
     dataset["validation"] = dataset["validation"].select(range(reduced_val_size))
 
@@ -224,7 +224,7 @@ def train_whisper(cfg: DictConfig):
         per_device_eval_batch_size=cfg.training.batch_size,
         gradient_accumulation_steps=cfg.training.gradient_accumulation_steps,
         learning_rate=1e-5,  # ADJUSTED: Lowered learning rate for stability
-        num_train_epochs=10,  # ADJUSTED: Increased epochs for better convergence
+        num_train_epochs=cfg.training.num_train_epochs,
         fp16=cfg.training.fp16,
         bf16=cfg.training.bf16,
         warmup_steps=500,  # ADJUSTED: Increased warmup steps

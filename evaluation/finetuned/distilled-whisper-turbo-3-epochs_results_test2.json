@@ -1,34 +1,34 @@
 {
-  "model_path": "/home/shadeform/DeepLearning_ExamProject/models/whisper-large-v3-turbo-OOB",
+  "model_path": "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-3-epochs",
   "metrics": {
-    "wer": 0.3008935598870318,
-    "cer": 0.13659301691216585
+    "wer": 0.22702189252759183,
+    "cer": 0.08556703317829915
   },
   "examples": [
     {
       "dialect": "vestjysk",
       "reference": "normannerne er en dansk film fra 1976",
-      "prediction": "anomaner er en dansk film fra 1976"
+      "prediction": "normanner er en dansk film fra 1976"
     },
     {
       "dialect": "vestjysk",
       "reference": "begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne",
-      "prediction": "bag klønger støtter sig kløngorganisationer til vækst og fremme ejer industri"
+      "prediction": "bagre klynger støtter sig af klyngorganisationer til vækst og frem af industrien"
     },
     {
       "dialect": "vestjysk",
       "reference": "i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen",
-      "prediction": "i mellemløbe tilfælde kan smerten klares med paracetamol og ibuprofen"
+      "prediction": "i midlere tilfælde kan smandet klarets med paracetamol og ibuprofen"
     },
     {
       "dialect": "vestjysk",
       "reference": "grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond",
-      "prediction": "grønt er et ødelag liges her gennem og umanget ved at fastlås lige omkring hovedstad richemont"
+      "prediction": "grant er et udelaget liges hergennem udmiddelse ved at fastlåse liget omkring højre stedet richemont"
     },
     {
       "dialect": "vestjysk",
       "reference": "i 1999 blev herning rejser fusioneret med falk lauritsen",
-      "prediction": "i 1999 blev herning rejse fusioneret med falk lauritsen"
+      "prediction": "i 1999 blev herning rejser fusioneret med falk lauritsen"
     }
   ]
 }

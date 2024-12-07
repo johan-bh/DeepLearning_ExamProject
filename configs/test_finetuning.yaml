@@ -1,5 +1,5 @@
 model:
-  path: "/home/shadeform/DeepLearning_ExamProject/models/whisper-large-v3-turbo"
+  path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-3-epochs"
   # path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-latest"
   device: 0  # Use GPU 0
   fp16: false
@@ -8,4 +8,4 @@ dataset:
   name: "alexandrainst/coral"
   config: null
   split: "test"
-  batch_size: 16
+  batch_size: 64
