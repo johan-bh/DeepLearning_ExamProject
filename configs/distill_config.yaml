@@ -1,37 +1,52 @@
 teacher_model:
   name: "syvai/hviske-v2"
-  device: 0
+  device: 1
   fp16: false
 
 student_model:
   name: "openai/whisper-large-v3-turbo"
-  device: 0
+  device: 1
   fp16: false
 
 dataset:
   name: "alexandrainst/coral"
+  # name: "mozilla-foundation/common_voice_17_0"
   train_split: "train"
   eval_split: "val"
-  train_size: 10000
+  config: da
+  train_size: 25000
   val_size: 1000
   num_proc: 5
   seed: 42
 
 training:
-  output_dir: "models/distilled-whisper-turbo-3-epochs"
-  per_device_train_batch_size: 16
-  per_device_eval_batch_size: 16
+  output_dir: "models/distilled-whisper-turbo-large_subset"
+  per_device_train_batch_size: 12
+  per_device_eval_batch_size: 12
   eval_accumulation_steps: 10
-  gradient_accumulation_steps: 1
-  learning_rate: 1e-5
+  gradient_accumulation_steps: 2
+  learning_rate: 3e-5
   num_train_epochs: 3
-  train_samples: 10000
+  train_samples: 25000
   val_samples: 1000
   dataloader_workers: 4
   fp16: false
   bf16: true
   logging_steps: 1000
   temperature: 2
-  alpha: 0.7
+  alpha: 0.6
   warmup_steps: 500
   warmup_ratio: 0.1
+
+lora:
+  rank: 16       # Increase from 8 to allow more expressivity
+  alpha: 64      # Increase from 32 to strengthen LoRA's influence
+  dropout: 0.05  # Decrease from 0.1 to allow more learning
+  target_modules: [
+    "q_proj", 
+    "v_proj",
+    "k_proj",    # Add key projection
+    "out_proj",  # Add output projection
+    "fc1",       # Add feed-forward layers
+    "fc2"
+  ]

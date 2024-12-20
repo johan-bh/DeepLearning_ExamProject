@@ -3,11 +3,11 @@ defaults:
 
 # Training parameters
 training:
-  output_dir: "models/whisper-large-v3-turbo"
-  num_train_epochs: 1           # Increased epochs for better convergence with larger data
+  output_dir: "models/whisper-large-v3-turbo-finetuned_large_subset"
+  num_train_epochs: 3           # Increased epochs for better convergence with larger data
   batch_size: 16                   # Moderate batch size, adjust based on GPU memory
   gradient_accumulation_steps: 2  # Simulate a larger batch size (effective batch size = 16)
-  learning_rate: 1e-5             # Lowered learning rate for more stable updates
+  learning_rate: 3e-5             # Lowered learning rate for more stable updates
   weight_decay: 0.01              # Standard weight decay for regularization
   max_steps: -1                   # Unlimited steps, controlled by epochs
   fp16: false                      # Enable mixed precision for faster training and reduced memory usage
@@ -28,6 +28,7 @@ model:
 
 # Dataset parameters
 dataset:
+  # name: "mozilla-foundation/common_voice_17_0"
   name: "alexandrainst/coral"
   config: null
   sampling_rate: 16000
@@ -36,8 +37,8 @@ dataset:
   language: "Danish"
   train_split: "train"
   eval_split: "val"
-  train_size: 10000
-  val_size: 1000
+  train_size: 20000
+  val_size: 500
   seed: 42
 
 eval:

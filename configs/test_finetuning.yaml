@@ -1,6 +1,6 @@
 model:
-  path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-3-epochs"
-  # path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-latest"
+  # path: "/ephemeral/DeepLearning_ExamProject/models/distilled-whisper-turbo-sequential-commonvoice"
+  path: "syvai/hviske-v2"
   device: 0  # Use GPU 0
   fp16: false
 
@@ -8,4 +8,4 @@ dataset:
   name: "alexandrainst/coral"
   config: null
   split: "test"
-  batch_size: 64
+  batch_size: 16

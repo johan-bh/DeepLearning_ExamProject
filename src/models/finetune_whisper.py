@@ -18,7 +18,8 @@ from transformers import (
     WhisperTokenizer,
     WhisperForConditionalGeneration,
     Seq2SeqTrainingArguments,
-    Seq2SeqTrainer
+    Seq2SeqTrainer,
+    TrainerCallback
 )
 from dataclasses import dataclass
 import evaluate
@@ -34,37 +35,37 @@ import numpy as np
 
 # ADDED: Imports for plotting and W&B logging
 import matplotlib.pyplot as plt
-import wandb
-from transformers import TrainerCallback
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
 
     def __call__(self, features):
-        # Extract inputs and labels
-        input_features = [feature["input_features"] for feature in features]
+        input_features = [feature["input_features"].clone().detach().to(torch.bfloat16) 
+                         for feature in features]
         labels = [feature["labels"] for feature in features]
 
         # Pad input features
-        batch = self.processor.feature_extractor.pad(
-            {"input_features": input_features}, padding=True, return_tensors="pt"
-        )
+        batch = {
+            "input_features": torch.nn.utils.rnn.pad_sequence(
+                input_features, 
+                batch_first=True
+            )
+        }
 
-        # Pad labels
+        # Pad labels and attention masks
         labels_batch = self.processor.tokenizer.pad(
             {"input_ids": labels},
             padding=True,
             return_tensors="pt",
-            return_attention_mask=False
+            return_attention_mask=True
         )
 
-        # Replace padding token id's of the labels by -100
-        labels_batch["input_ids"] = labels_batch["input_ids"].masked_fill(
-            labels_batch["input_ids"] == self.processor.tokenizer.pad_token_id, -100
+        batch["labels"] = labels_batch["input_ids"].masked_fill(
+            labels_batch["input_ids"] == self.processor.tokenizer.pad_token_id, 
+            -100
         )
-
-        batch["labels"] = labels_batch["input_ids"]
+        batch["attention_mask"] = labels_batch["attention_mask"]
 
         return batch
 
@@ -130,9 +131,6 @@ class PlotLossCallback(TrainerCallback):
         fig_path = Path(args.output_dir) / "training_progress.png"
         plt.savefig(fig_path)
 
-        # Log figure to W&B
-        wandb.log({"training_progress": wandb.Image(fig)})
-
         plt.close(fig)
 
 @hydra.main(config_path="../../configs", config_name="train_config", version_base=None)
@@ -142,6 +140,15 @@ def train_whisper(cfg: DictConfig):
     logger = logging.getLogger(__name__)
     
     logger.info("=== Starting Whisper Fine-tuning ===")
+
+    # Add device checking and setup
+    if torch.cuda.is_available():
+        n_gpu = torch.cuda.device_count()
+        logger.info(f"Found {n_gpu} GPU(s) available")
+        device = torch.device("cuda:0")  # Default to first GPU
+    else:
+        logger.info("No GPU available, using CPU")
+        device = torch.device("cpu")
 
     # Create output directory
     output_dir = Path(cfg.training.output_dir)
@@ -157,19 +164,22 @@ def train_whisper(cfg: DictConfig):
     )
     logger.info("✓ Processor loaded")
 
-    # Load model
+    # Load model with bfloat16
     logger.info("\nLoading model...")
     model = WhisperForConditionalGeneration.from_pretrained(
         cfg.model.name,
-        cache_dir=cache_dir / "transformers"
-    )
+        cache_dir=cache_dir / "transformers",
+        torch_dtype=torch.bfloat16
+    ).to(device)
+
+    # After loading the model
+    from transformers.cache_utils import Cache
+    model.use_cache = True  # Enable caching
 
     # ADDED: Set forced decoder IDs & generation config as in distillation
-    forced_decoder_ids = processor.get_decoder_prompt_ids(language="da", task="transcribe")
-    model.config.forced_decoder_ids = forced_decoder_ids
+    model.config.forced_decoder_ids = None  # Remove forced decoder IDs
     model.config.suppress_tokens = []
     # ADDED: Also set generation_config to ensure correct decoding
-    model.generation_config.forced_decoder_ids = forced_decoder_ids
     model.generation_config.language = "da"
     model.generation_config.task = "transcribe"
 
@@ -179,23 +189,39 @@ def train_whisper(cfg: DictConfig):
     logger.info("\nLoading preprocessed dataset...")
     dataset = load_dataset(cfg)
 
+    # only take 500 samples from val
+    dataset["validation"] = dataset["validation"].select(range(500))
+
     # column cast audio 16khz, for extra safety
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
     logger.info(f"Train size: {len(dataset['train'])}")
     logger.info(f"Validation size: {len(dataset['validation'])}")
 
-    # ADDED: Reduce dataset size by a factor of 10 or smaller for debugging
-    reduced_train_size = max(1, len(dataset["train"]) // 1 )
-    reduced_val_size = max(1, len(dataset["validation"]) // 5)
-    dataset["train"] = dataset["train"].select(range(reduced_train_size))
-    dataset["validation"] = dataset["validation"].select(range(reduced_val_size))
-
     def transform_fn(example):
         """Transform function for preprocessed data"""
+        # Process audio to input features
+        input_features = processor(
+            [audio_item["array"] for audio_item in example["audio"]],
+            sampling_rate=16000,
+            return_tensors="pt",
+            return_attention_mask=True
+        ).input_features.squeeze(0)
+
+        # Process text to labels
+        label_tokens = processor.tokenizer(
+            example["text"],
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=448,
+            return_attention_mask=True
+        )
+
         return {
-            "input_features": example["input_features"],
-            "labels": example["labels"]
+            "input_features": input_features,
+            "labels": label_tokens.input_ids.squeeze(0),
+            "attention_mask": label_tokens.attention_mask.squeeze(0)
         }
 
     # Apply the transformation
@@ -213,39 +239,36 @@ def train_whisper(cfg: DictConfig):
     # Data collator
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
-    # ADDED: Initialize W&B run
-    wandb.init(project="my-whisper-finetuning", name="whisper-finetuning-run")
-
-    # Training arguments
     # Training arguments
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(output_dir),
         per_device_train_batch_size=cfg.training.batch_size,
         per_device_eval_batch_size=cfg.training.batch_size,
         gradient_accumulation_steps=cfg.training.gradient_accumulation_steps,
-        learning_rate=1e-5,  # ADJUSTED: Lowered learning rate for stability
+        learning_rate=cfg.training.learning_rate,
+        weight_decay=cfg.training.weight_decay,
         num_train_epochs=cfg.training.num_train_epochs,
         fp16=cfg.training.fp16,
         bf16=cfg.training.bf16,
-        warmup_steps=500,  # ADJUSTED: Increased warmup steps
+        warmup_steps=500,
+        warmup_ratio=0.1,
         save_strategy="epoch",
-        save_total_limit=2,   
-        logging_steps=cfg.training.logging_steps,
-        eval_strategy="epoch",  # UPDATED: Replaced 'evaluation_strategy' with 'eval_strategy'
+        save_total_limit=2,
+        logging_steps=100,
+        eval_strategy="epoch",
         predict_with_generate=True,
-        generation_max_length=225,
-        generation_num_beams=1,  # ADJUSTED: Set to 1 for stable decoding
+        generation_max_length=448,
+        generation_num_beams=1,
         push_to_hub=False,
-        # ADDED: Improved settings based on distil script
         remove_unused_columns=False,
         label_names=["labels"],
         metric_for_best_model="cer",
         greater_is_better=False,
-        optim="adamw_hf",  # Explicitly set optimizer
-        # ADDED: W&B reporting
-        report_to=["wandb"],
-        # Optional: specify a logging dir for local logs
+        optim="adamw_hf",
+        lr_scheduler_type="linear",
+        max_grad_norm=0.5,
         logging_dir=str(output_dir / "logs"),
+        report_to=[],
     )
 
     # Trainer
@@ -275,8 +298,6 @@ def train_whisper(cfg: DictConfig):
         json.dump(eval_results, f)
 
     logger.info("\n=== Training complete! ===")
-    # Finish W&B run
-    wandb.finish()
 
 if __name__ == "__main__":
     train_whisper()

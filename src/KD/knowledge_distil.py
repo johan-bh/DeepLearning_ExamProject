@@ -39,23 +39,25 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     def __call__(self, features):
         # Convert input features to numpy arrays if they're lists
         features = [{
-            "input_features": np.array(feature["input_features"], dtype=np.float32) if isinstance(feature["input_features"], list) else feature["input_features"].astype(np.float32),
-            "labels": feature["labels"]
+            "input_features": feature["input_features"] if isinstance(feature["input_features"], np.ndarray) 
+                            else np.array(feature["input_features"]),
+            "labels": feature["labels"] if isinstance(feature["labels"], np.ndarray)
+                     else np.array(feature["labels"])
         } for feature in features]
         
         # Get max length for padding
-        max_length = max(feature["input_features"].shape[0] for feature in features)
+        max_length = max(feature["input_features"].shape[1] for feature in features)
         
         # Pad input features
         padded_inputs = []
         for feature in features:
             input_feature = feature["input_features"]
-            padding_length = max_length - input_feature.shape[0]
+            padding_length = max_length - input_feature.shape[1]
             
             if padding_length > 0:
                 padded_feature = np.pad(
                     input_feature,
-                    ((0, padding_length), (0, 0)),
+                    ((0, 0), (0, padding_length), (0, 0)),
                     mode='constant',
                     constant_values=0
                 )
@@ -64,9 +66,9 @@ class DataCollatorSpeechSeq2SeqWithPadding:
                 
             padded_inputs.append(padded_feature)
         
-        # Convert to tensor with float32 dtype
+        # Convert to tensor with bfloat16 dtype
         batch = {
-            "input_features": torch.tensor(np.array(padded_inputs), dtype=torch.float32),
+            "input_features": torch.tensor(np.array(padded_inputs), dtype=torch.bfloat16),
         }
 
         # Pad labels
@@ -202,11 +204,20 @@ def distill_whisper(cfg: DictConfig):
     
     logger.info("=== Starting Whisper Knowledge Distillation ===")
 
+    # Add device checking and setup
+    if torch.cuda.is_available():
+        n_gpu = torch.cuda.device_count()
+        logger.info(f"Found {n_gpu} GPU(s) available")
+        device = torch.device("cuda:0")  # Default to first GPU
+    else:
+        logger.info("No GPU available, using CPU")
+        device = torch.device("cpu")
+
     # Create output directory
     output_dir = Path(cfg.training.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load processor and models
+    # Load processor and models with safe device allocation
     logger.info("\nLoading processor and models...")
     processor = WhisperProcessor.from_pretrained(
         cfg.teacher_model.name,
@@ -214,21 +225,16 @@ def distill_whisper(cfg: DictConfig):
         task="transcribe"
     )
 
+    # Modify model loading to use safe device allocation
     teacher_model = WhisperForConditionalGeneration.from_pretrained(
         cfg.teacher_model.name,
-        device_map=f"cuda:{cfg.teacher_model.device}",
-        torch_dtype=torch.float32
-    )
+        torch_dtype=torch.bfloat16
+    ).to(device)
 
     student_model = WhisperForConditionalGeneration.from_pretrained(
         cfg.student_model.name,
-        device_map=f"cuda:{cfg.student_model.device}",
-        torch_dtype=torch.float32
-    )
-
-    # Convert models to float32
-    teacher_model = teacher_model.float()
-    student_model = student_model.float()
+        torch_dtype=torch.bfloat16
+    ).to(device)
 
     # Ensure student model has the same tokenizer and vocab size
     student_model.config.vocab_size = teacher_model.config.vocab_size
@@ -283,11 +289,51 @@ def distill_whisper(cfg: DictConfig):
 
     def transform_fn(example):
         """Transform function for preprocessed data"""
-        # Data is already processed, just ensure correct format
-        return {
-            "input_features": example["input_features"],
-            "labels": example["labels"]
-        }
+        # First, let's log the structure to see what we're working with
+        if not hasattr(transform_fn, 'structure_logged'):
+            print("Example type:", type(example))
+            print("Example structure:", example)
+            transform_fn.structure_logged = True
+        
+        # Handle the specific dataset structure
+        if isinstance(example, dict):
+            # Process audio features - take only the first audio sample for now
+            if 'audio' in example and isinstance(example['audio'], list):
+                # Extract features using the processor
+                input_features = processor(
+                    [audio_item['array'] for audio_item in example['audio']],
+                    sampling_rate=16000,
+                    return_tensors="np"
+                ).input_features
+            else:
+                raise KeyError("Expected 'audio' key with list of audio samples")
+            
+            # Process text labels
+            if 'text' in example and isinstance(example['text'], list):
+                # Convert text to labels using the processor
+                labels = processor(
+                    text=example['text'],
+                    return_tensors="np",
+                    padding=True
+                ).input_ids
+            else:
+                raise KeyError("Expected 'text' key with list of transcriptions")
+            
+            return {
+                "input_features": input_features,
+                "labels": labels
+            }
+        else:
+            raise TypeError(f"Expected dict, got {type(example)}")
+
+    # Before applying the transform, let's inspect the dataset structure
+    logger.info("Dataset structure before transform:")
+    try:
+        sample = dataset['train'][0]
+        logger.info(f"Sample type: {type(sample)}")
+        logger.info(f"Sample content: {sample}")
+    except Exception as e:
+        logger.error(f"Error inspecting dataset: {str(e)}")
 
     # Apply the transformation lazily
     logger.info("Applying lazy transformations with set_transform...")
@@ -309,8 +355,8 @@ def distill_whisper(cfg: DictConfig):
         max_steps=-1,
         warmup_steps=cfg.training.warmup_steps,
         warmup_ratio=cfg.training.warmup_ratio,
-        fp16=cfg.training.fp16,
-        bf16=cfg.training.bf16,
+        fp16=False,
+        bf16=True,
         save_strategy="epoch",           # Changed back to "epoch"
         save_total_limit=2,             # Keep only the last 2 checkpoints
         evaluation_strategy="epoch",     # Changed back to "epoch"
@@ -326,6 +372,7 @@ def distill_whisper(cfg: DictConfig):
         generation_num_beams=1,
         include_for_metrics=["input_features", "labels"],
         max_grad_norm=1.0,
+        report_to=[],
         dataloader_num_workers=cfg.training.dataloader_workers
     )
 

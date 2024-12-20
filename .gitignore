@@ -68,3 +68,26 @@ models/
 outputs/
 
 .venv/
+
+large_subset/
+medium_subset/
+small_subset/
+mini_subset/
+big_subset/
+
+# ignore .wav files
+*.wav
+
+# ignore backup files
+*.bak
+
+# ignore commonvoice/
+commonvoice/
+
+src/data/astma.wav
+src/data/diktering_med_tegsætning.wav
+src/data/Ny_optagelse_16k.wav
+
+
+# ignore
+
