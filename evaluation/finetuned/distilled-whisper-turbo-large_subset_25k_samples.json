@@ -1,0 +1,34 @@
+{
+  "model_path": "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-large_subset",
+  "metrics": {
+    "wer": 0.19336129204961186,
+    "cer": 0.07230221623284361
+  },
+  "examples": [
+    {
+      "dialect": "vestjysk",
+      "reference": "normannerne er en dansk film fra 1976",
+      "prediction": "anumaner er en dansk film fra 1976"
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "begge klynger støttes af klyngeorganisationer til vækst og fremme af industrierne",
+      "prediction": "berger klønge stødte sig kløngeorganisationer til vækst og fremmejde industri"
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "i mildere tilfælde kan smerterne klares med paracetamol og ibuprofen",
+      "prediction": "i midlere tilfælde kan smager klarets med paracetamol og iboprofen"
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "grant at ødelægge lees hær gennem udmattelse ved at fastlåse lee omkring hovedstaden richmond",
+      "prediction": "græntet er et ødelaget liges herigennem udmændelser ved at fastlås lige omkring hurestedet richemond"
+    },
+    {
+      "dialect": "vestjysk",
+      "reference": "i 1999 blev herning rejser fusioneret med falk lauritsen",
+      "prediction": "i 1999 blev herning rejser fusioneret med falck lauritsen"
+    }
+  ]
+}

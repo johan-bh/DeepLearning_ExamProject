@@ -1,6 +1,6 @@
 model:
-  path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-3-epochs"
-  # path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-latest"
+  path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-large_subset"
+  # path: "syvai/hviske-v2"
   device: 0  # Use GPU 0
   fp16: false
 

@@ -1,0 +1,197 @@
+{
+  "model_path": "syvai/hviske-v2",
+  "num_entries_processed": 8000,
+  "metrics": {
+    "overall_wer": 0.13315163585962705,
+    "overall_cer": 0.054502613412980204
+  },
+  "group_metrics": [
+    {
+      "category": "female",
+      "cer": 0.06234575529815337,
+      "wer": 0.1454512021330391
+    },
+    {
+      "category": "male",
+      "cer": 0.046383699608849534,
+      "wer": 0.12051663479020566
+    },
+    {
+      "category": "0-25",
+      "cer": 0.0454743989358534,
+      "wer": 0.11931262230919765
+    },
+    {
+      "category": "25-50",
+      "cer": 0.05217345347884681,
+      "wer": 0.1336186094398507
+    },
+    {
+      "category": "50+",
+      "cer": 0.06024737162331777,
+      "wer": 0.1386633354153654
+    },
+    {
+      "category": "amagermål",
+      "cer": 0.025429150229235527,
+      "wer": 0.07455853499018966
+    },
+    {
+      "category": "bornholmsk",
+      "cer": 0.047015202076381164,
+      "wer": 0.12403189066059225
+    },
+    {
+      "category": "fynsk",
+      "cer": 0.01643835616438356,
+      "wer": 0.04753820033955857
+    },
+    {
+      "category": "himmerlandsk",
+      "cer": 0.016762469868347857,
+      "wer": 0.049500454132606724
+    },
+    {
+      "category": "langelandsk",
+      "cer": 0.0916449598072991,
+      "wer": 0.2203941730934019
+    },
+    {
+      "category": "lollandsk",
+      "cer": 0.046189735614307934,
+      "wer": 0.111509930605408
+    },
+    {
+      "category": "morsingmål",
+      "cer": 0.07750206380809013,
+      "wer": 0.19115419569827324
+    },
+    {
+      "category": "nordfalstersk",
+      "cer": 0.05491132332878581,
+      "wer": 0.12863070539419086
+    },
+    {
+      "category": "nordsjællandsk",
+      "cer": 0.046090901500180914,
+      "wer": 0.11982044198895028
+    },
+    {
+      "category": "nørrejysk",
+      "cer": 0.0669929642092383,
+      "wer": 0.17440890125173852
+    },
+    {
+      "category": "sjællandsk",
+      "cer": 0.008231772503741715,
+      "wer": 0.03618421052631579
+    },
+    {
+      "category": "syd for rigsgrænsen",
+      "cer": 0.049609457462529025,
+      "wer": 0.1246684350132626
+    },
+    {
+      "category": "sønderjysk",
+      "cer": 0.10654458234980584,
+      "wer": 0.206792627796453
+    },
+    {
+      "category": "vendsysselsk",
+      "cer": 0.020963314200149737,
+      "wer": 0.059484066767830045
+    },
+    {
+      "category": "vestjysk",
+      "cer": 0.08150523597355053,
+      "wer": 0.19781553398058252
+    },
+    {
+      "category": "østjysk",
+      "cer": 0.03546886476781196,
+      "wer": 0.09653440482169764
+    },
+    {
+      "category": "østligt sønderjysk (m. als)",
+      "cer": 0.09967404357522731,
+      "wer": 0.2225103734439834
+    },
+    {
+      "category": "overall",
+      "cer": 0.054502613412980204,
+      "wer": 0.13315163585962705
+    }
+  ],
+  "examples": [
+    {
+      "dialect": "fynsk",
+      "age": "50+",
+      "gender": "male",
+      "reference": "i den danske periode før 1864 var landsbyen en del af kappel sogn",
+      "prediction": "i den danske periode før 1864 var landsbyen en del af kappel sogn"
+    },
+    {
+      "dialect": "himmerlandsk",
+      "age": "25-50",
+      "gender": "female",
+      "reference": "på dette tidspunkt var tysk det officielle sprog i bøhmen",
+      "prediction": "på dette tidspunkt var tysk det officielle sprog i bøhmen"
+    },
+    {
+      "dialect": "vendsysselsk (m. hanherred og læsø)",
+      "age": "50+",
+      "gender": "female",
+      "reference": "de kan sprede sig over store områder ved hjælp af vandret voksende jordstængler i havbunden",
+      "prediction": "de kan sprede sig over store områder ved hjælp af vandret voksende jordstængler i havbunden"
+    },
+    {
+      "dialect": "amagermål",
+      "age": "25-50",
+      "gender": "male",
+      "reference": "efter valget blev han indsat som vicepremierminister samt energiminister",
+      "prediction": "efter valget blev han indsat som vicepremierminister samt energiminister"
+    },
+    {
+      "dialect": "nordsjællandsk",
+      "age": "50+",
+      "gender": "female",
+      "reference": "ingen af de hurtige test er på nuværende tidspunkt så følsomme som en tyk blodfilm og heller ikke så billige",
+      "prediction": "ingen af de hurtige test er på nuværende tidspunkt så følsomme som en tykblodfilm og heller ikke så billige"
+    },
+    {
+      "dialect": "vestjysk",
+      "age": "50+",
+      "gender": "female",
+      "reference": "en god red er afskærmet og har en passende vanddybde",
+      "prediction": "en god red er afskærmet og har en passende vanddybde"
+    },
+    {
+      "dialect": "morsingmål",
+      "age": "25-50",
+      "gender": "female",
+      "reference": "i 1985 blev den nye bakke officielt åbnet efter at have været i brug et år",
+      "prediction": "i 1985 blev den nye bak officielt åbnet efter at have været taget i brug i en uge"
+    },
+    {
+      "dialect": "vestjysk",
+      "age": "50+",
+      "gender": "female",
+      "reference": "jagrs foretrukne position på isen er højre wing",
+      "prediction": "jagger svortrålning position på især højre side"
+    },
+    {
+      "dialect": "sønderjysk",
+      "age": "50+",
+      "gender": "female",
+      "reference": "for at frembringe rene linjer krydser man i hver generation beslægtede individer med hinanden",
+      "prediction": "for at frembringe rene linjer krydser man i hver generation beslægtede individer med hinanden"
+    },
+    {
+      "dialect": "langelandsk",
+      "age": "25-50",
+      "gender": "female",
+      "reference": "i kirkelig henseende hører landsbyen til haddeby sogn",
+      "prediction": "kirkelig henseende hører løgnsbø til hagebø sogn"
+    }
+  ]
+}

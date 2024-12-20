@@ -1,0 +1,182 @@
+{
+  "model_path": "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-large_subset",
+  "num_entries_processed": 2560,
+  "metrics": {
+    "overall_wer": 0.2242505140878098,
+    "overall_cer": 0.08309543470567418
+  },
+  "group_metrics": [
+    {
+      "category": "female",
+      "cer": 0.09156421789105447,
+      "wer": 0.24692038977753264
+    },
+    {
+      "category": "male",
+      "cer": 0.07090228809900705,
+      "wer": 0.19180845465707771
+    },
+    {
+      "category": "0-25",
+      "cer": 0.0398410268104375,
+      "wer": 0.12120007947546195
+    },
+    {
+      "category": "25-50",
+      "cer": 0.08579918595650111,
+      "wer": 0.23785126533147027
+    },
+    {
+      "category": "50+",
+      "cer": 0.09543908660269647,
+      "wer": 0.25078485687903973
+    },
+    {
+      "category": "amagermål",
+      "cer": 0.038604651162790694,
+      "wer": 0.13157894736842105
+    },
+    {
+      "category": "bornholmsk",
+      "cer": 0.08794901506373116,
+      "wer": 0.25293711126468554
+    },
+    {
+      "category": "fynsk",
+      "cer": 0.03533687447581772,
+      "wer": 0.11273344651952462
+    },
+    {
+      "category": "himmerlandsk",
+      "cer": 0.02938280954184021,
+      "wer": 0.09287054409005628
+    },
+    {
+      "category": "langelandsk",
+      "cer": 0.10847870182555781,
+      "wer": 0.27129492860659776
+    },
+    {
+      "category": "morsingmål",
+      "cer": 0.1302384305346477,
+      "wer": 0.34989397152378066
+    },
+    {
+      "category": "nordsjællandsk",
+      "cer": 0.029696969696969697,
+      "wer": 0.11235955056179775
+    },
+    {
+      "category": "sjællandsk",
+      "cer": 0.025246981339187707,
+      "wer": 0.11510791366906475
+    },
+    {
+      "category": "syd for rigsgrænsen",
+      "cer": 0.14685314685314685,
+      "wer": 0.3333333333333333
+    },
+    {
+      "category": "sønderjysk",
+      "cer": 0.06754772393538913,
+      "wer": 0.167420814479638
+    },
+    {
+      "category": "vendsysselsk",
+      "cer": 0.02970185425238122,
+      "wer": 0.10030811365970559
+    },
+    {
+      "category": "vestjysk",
+      "cer": 0.15517968914832267,
+      "wer": 0.3904065390406539
+    },
+    {
+      "category": "østjysk",
+      "cer": 0.0398410268104375,
+      "wer": 0.12120007947546195
+    },
+    {
+      "category": "østligt sønderjysk (m. als)",
+      "cer": 0.1523417395779722,
+      "wer": 0.37136929460580914
+    },
+    {
+      "category": "overall",
+      "cer": 0.08309543470567418,
+      "wer": 0.2242505140878098
+    }
+  ],
+  "examples": [
+    {
+      "dialect": "fynsk",
+      "age": "50+",
+      "gender": "male",
+      "reference": "det skal være en kopi af slotstårnet i azuchi slot",
+      "prediction": "det skal være en kopi af slotståren i sushis slot"
+    },
+    {
+      "dialect": "vendsysselsk (m. hanherred og læsø)",
+      "age": "50+",
+      "gender": "female",
+      "reference": "der blev stillet spørgsmål om henriksens indkaldelse til samrådene var som folketingsmedlem eller advokat i en retssag",
+      "prediction": "der blev stillet spørgsmål om henriksens indkaldelse til samrådene var som folketingsmedlem eller advokat i en retssag"
+    },
+    {
+      "dialect": "østligt sønderjysk (m. als)",
+      "age": "50+",
+      "gender": "male",
+      "reference": "det gælder fx hans brug af kromatik og atonalitet",
+      "prediction": "det gælder fx brug af kromatik og antalitet"
+    },
+    {
+      "dialect": "vestjysk",
+      "age": "50+",
+      "gender": "male",
+      "reference": "militæret ankommer til flyvepladsen og skyder ved en fejl yemi",
+      "prediction": "militæren kommer til at flydepladsen og skyder ved en fejl hjemme"
+    },
+    {
+      "dialect": "bornholmsk",
+      "age": "50+",
+      "gender": "female",
+      "reference": "efter krigens udbrud ledede mosley en kampagne for fredsforhandlinger",
+      "prediction": "efter krigens udbrud ledede mosly en kampagne for fredsforhandlinger"
+    },
+    {
+      "dialect": "langelandsk",
+      "age": "50+",
+      "gender": "female",
+      "reference": "men som andre tidligere ansatte ved den nazikontrollerede presse kunne hergé ikke blive ansat ved et nyt forlag",
+      "prediction": "men som også tidligere ansatte ved den nazistkontrollerede præs kunne herger 1 blive ansat ved et nyt forlag"
+    },
+    {
+      "dialect": "himmerlandsk",
+      "age": "25-50",
+      "gender": "female",
+      "reference": "han får kun ét år at leve i",
+      "prediction": "han får kun ét år at leve i"
+    },
+    {
+      "dialect": "bornholmsk",
+      "age": "50+",
+      "gender": "female",
+      "reference": "om aftenen var det meste af byen brændt ned til grunden",
+      "prediction": "om eriksenen var det meste bøn bræt ned til grunden"
+    },
+    {
+      "dialect": "østligt sønderjysk (m. als)",
+      "age": "50+",
+      "gender": "male",
+      "reference": "claiborne til new orleans som guvernør",
+      "prediction": "klaibon i nørrins som guvernær"
+    },
+    {
+      "dialect": "østjysk",
+      "age": "0-25",
+      "gender": "male",
+      "reference": "rasmus skomagers datter blev hængt her i 1754",
+      "prediction": "rasmus skumærers datter blev hængt her i 1754"
+    }
+  ]
+}
