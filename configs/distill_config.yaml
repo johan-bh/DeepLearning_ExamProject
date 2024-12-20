@@ -15,12 +15,17 @@ dataset:
   eval_split: "val"
   config: da
   train_size: 25000
+<<<<<<< HEAD
   val_size: 500
+=======
+  val_size: 1000
+>>>>>>> b791ce11ff8eaa2164e4a1e8d9ed53d2b6600e45
   num_proc: 5
   seed: 42
 
 training:
   output_dir: "models/distilled-whisper-turbo-large_subset"
+<<<<<<< HEAD
   per_device_train_batch_size: 24
   per_device_eval_batch_size: 24
   eval_accumulation_steps: 10
@@ -29,12 +34,22 @@ training:
   num_train_epochs: 1
   train_samples: 250
   val_samples: 10
+=======
+  per_device_train_batch_size: 12
+  per_device_eval_batch_size: 12
+  eval_accumulation_steps: 10
+  gradient_accumulation_steps: 2
+  learning_rate: 3e-5
+  num_train_epochs: 3
+  train_samples: 25000
+  val_samples: 1000
+>>>>>>> b791ce11ff8eaa2164e4a1e8d9ed53d2b6600e45
   dataloader_workers: 4
   fp16: false
   bf16: true
   logging_steps: 1000
   temperature: 2
-  alpha: 0.7
+  alpha: 0.6
   warmup_steps: 500
   warmup_ratio: 0.1
 

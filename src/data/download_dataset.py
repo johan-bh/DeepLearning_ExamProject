@@ -22,10 +22,17 @@ def create_small_subset(cfg: DictConfig):
     """
 
     # Desired subset sizes
+<<<<<<< HEAD
     train_size = 50000
     val_size = 500
 
     output_dir = Path("huge_subset/data")
+=======
+    train_size = 10000
+    val_size = 250
+
+    output_dir = Path("big_subset/data")
+>>>>>>> b791ce11ff8eaa2164e4a1e8d9ed53d2b6600e45
     output_dir.mkdir(parents=True, exist_ok=True)
 
     audio_dir = output_dir / "audio_files"

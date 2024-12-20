@@ -73,8 +73,29 @@ large_subset/
 medium_subset/
 small_subset/
 mini_subset/
+<<<<<<< HEAD
 huge_subset/
 triple_combined_datasets/
 huge_combined/
 # ignore .wav files
 *.wav
+=======
+big_subset/
+
+# ignore .wav files
+*.wav
+
+# ignore backup files
+*.bak
+
+# ignore commonvoice/
+commonvoice/
+
+src/data/astma.wav
+src/data/diktering_med_tegsætning.wav
+src/data/Ny_optagelse_16k.wav
+
+
+# ignore
+
+>>>>>>> b791ce11ff8eaa2164e4a1e8d9ed53d2b6600e45

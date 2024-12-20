@@ -32,8 +32,6 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.data.data_loader import load_dataset
 import numpy as np
-
-# ADDED: Imports for plotting and W&B logging
 import matplotlib.pyplot as plt
 
 @dataclass
@@ -176,10 +174,9 @@ def train_whisper(cfg: DictConfig):
     from transformers.cache_utils import Cache
     model.use_cache = True  # Enable caching
 
-    # ADDED: Set forced decoder IDs & generation config as in distillation
+    # Set model configuration
     model.config.forced_decoder_ids = None  # Remove forced decoder IDs
     model.config.suppress_tokens = []
-    # ADDED: Also set generation_config to ensure correct decoding
     model.generation_config.language = "da"
     model.generation_config.task = "transcribe"
 
@@ -188,6 +185,9 @@ def train_whisper(cfg: DictConfig):
     # Load preprocessed dataset
     logger.info("\nLoading preprocessed dataset...")
     dataset = load_dataset(cfg)
+
+    # only take 500 samples from val
+    dataset["validation"] = dataset["validation"].select(range(500))
 
     # column cast audio 16khz, for extra safety
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
@@ -248,13 +248,13 @@ def train_whisper(cfg: DictConfig):
         fp16=cfg.training.fp16,
         bf16=cfg.training.bf16,
         warmup_steps=500,
-        warmup_ratio=0.1,    # Add warmup ratio
+        warmup_ratio=0.1,
         save_strategy="steps",
         save_steps=1000,
         save_total_limit=2,
         logging_steps=500,
         eval_strategy="steps",
-        eval_steps=1000,      # More frequent evaluation
+        eval_steps=1000,
         predict_with_generate=True,
         generation_max_length=448,
         generation_num_beams=1,
@@ -278,7 +278,7 @@ def train_whisper(cfg: DictConfig):
         eval_dataset=dataset["validation"],
         data_collator=data_collator,
         compute_metrics=partial(compute_metrics, processor=processor),
-        callbacks=[PlotLossCallback()]  # ADDED: callback for plotting at the end
+        callbacks=[PlotLossCallback()]
     )
 
     # Train the model

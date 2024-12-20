@@ -11,7 +11,11 @@ def load_dataset(cfg):
     dataset_path = Path("huge_subset/data/data")
     
     logger.info(f"Looking for dataset at {dataset_path}...")
+    logger.info(f"Looking for dataset at {dataset_path}...")
     
+    if dataset_path.exists():
+        logger.info(f"Loading dataset from {dataset_path}")
+        return load_from_disk(str(dataset_path))
     if dataset_path.exists():
         logger.info(f"Loading dataset from {dataset_path}")
         return load_from_disk(str(dataset_path))
@@ -21,8 +25,17 @@ def load_dataset(cfg):
         if absolute_path.exists():
             logger.info(f"Loading dataset from {absolute_path}")
             return load_from_disk(str(absolute_path))
+        # Try absolute path as fallback
+        absolute_path = Path(os.getcwd()) / dataset_path
+        if absolute_path.exists():
+            logger.info(f"Loading dataset from {absolute_path}")
+            return load_from_disk(str(absolute_path))
         
         raise FileNotFoundError(
+            f"No dataset found at either:\n"
+            f"  {dataset_path}\n"
+            f"  {absolute_path}\n"
+            f"Please run download_dataset.py first to create the dataset."
             f"No dataset found at either:\n"
             f"  {dataset_path}\n"
             f"  {absolute_path}\n"

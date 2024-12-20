@@ -140,6 +140,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
                     audio_array = resample_audio(audio_array, original_sampling_rate, target_sampling_rate)
                     audio_arrays.append(audio_array)
                     transcriptions.append(sample["text"])
+                    
                     # Extract dialect, age, gender if present, else label "Unknown"
                     dia = sample.get("dialect", "Unknown")
                     ag = sample.get("age", "Unknown")
@@ -257,7 +258,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     for gcat in ["female", "male"]:
         if gcat in gender_stats["gender"].values:
             categories.append((gcat, gender_stats.loc[gender_stats["gender"] == gcat, "cer"].iloc[0],
-                                     gender_stats.loc[gender_stats["gender"] == gcat, "wer"].iloc[0]))
+                             gender_stats.loc[gender_stats["gender"] == gcat, "wer"].iloc[0]))
         else:
             categories.append((gcat, float('nan'), float('nan')))
 
@@ -265,7 +266,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     for acat in ["0-25", "25-50", "50+"]:
         if acat in age_stats["age"].values:
             categories.append((acat, age_stats.loc[age_stats["age"] == acat, "cer"].iloc[0],
-                                     age_stats.loc[age_stats["age"] == acat, "wer"].iloc[0]))
+                             age_stats.loc[age_stats["age"] == acat, "wer"].iloc[0]))
         else:
             categories.append((acat, float('nan'), float('nan')))
 

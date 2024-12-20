@@ -375,6 +375,7 @@ def distill_whisper(cfg: DictConfig):
         generation_num_beams=1,
         include_for_metrics=["input_features", "labels"],
         max_grad_norm=1.0,
+        report_to=[],
         dataloader_num_workers=cfg.training.dataloader_workers
     )
 
