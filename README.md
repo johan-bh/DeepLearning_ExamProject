@@ -9,7 +9,7 @@ This project showcases various scripts for fine-tuning and distilling a Whisper 
 - `configs/`: Configuration files for models and training
 - `data/`: Data storage and processing scripts
 - `models/`: Model definitions and saved models
-- `notebooks/`: Jupyter notebooks for exploration
+- `notebooks/`: Jupyter notebooks for exploration. This is where the explainer notebook for result replication is located.
 - `src/`: Source code
 - `tests/`: Unit tests
 
