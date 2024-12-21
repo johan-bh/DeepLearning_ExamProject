@@ -1,13 +1,8 @@
 model:
-<<<<<<< HEAD
-  path: "/home/shadeform/DeepLearning_ExamProject/models/distilled-whisper-turbo-large_subset"
+  path: "C:/Users/jbhan/Desktop/Deep/models/whisper-large-v3-turbo-finetuned_large_subset"
   # path: "syvai/hviske-v2"
-=======
-  # path: "/ephemeral/DeepLearning_ExamProject/models/distilled-whisper-turbo-sequential-commonvoice"
-  path: "syvai/hviske-v2"
->>>>>>> b791ce11ff8eaa2164e4a1e8d9ed53d2b6600e45
   device: 0  # Use GPU 0
-  fp16: false
+  fp16: true
 
 dataset:
   name: "alexandrainst/coral"

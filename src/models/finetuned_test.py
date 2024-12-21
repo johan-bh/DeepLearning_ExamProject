@@ -109,7 +109,7 @@ def evaluate_finetuned_model(config_path="configs/test_finetuning.yaml"):
     genders = []
 
     # Set max samples
-    max_samples = 2500
+    max_samples = 8000 
     batch_size = config['dataset']['batch_size']
     batch_iter = batch_iterator(dataset, batch_size)
 
