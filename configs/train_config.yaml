@@ -4,20 +4,19 @@ defaults:
 # Training parameters
 training:
   output_dir: "models/whisper-large-v3-turbo-finetuned_50k"
-  num_train_epochs: 3           # Increased epochs for better convergence with larger data
-  batch_size: 32                   # Moderate batch size, adjust based on GPU memory
-  gradient_accumulation_steps: 1  # Simulate a larger batch size (effective batch size = 16)
-  learning_rate: 1e-5             # Lowered learning rate for more stable updates
-  weight_decay: 0.01              # Standard weight decay for regularization
-  max_steps: -1                   # Unlimited steps, controlled by epochs
-  fp16: false                      # Enable mixed precision for faster training and reduced memory usage
-  bf16: true                     # Disable bf16; use fp16 if supported by hardware
-  warmup_steps: 500               # Increased warmup steps for gradual learning rate increase
-  # warmup_ratio: 0.1             # Removed to avoid conflict with warmup_steps
-  save_steps: 1000                # Save model checkpoints every 1000 steps
-  eval_steps: 1000                # Evaluate every 1000 steps
-  logging_steps: 500              # Increased logging frequency for better monitoring
-  gradient_clip_val: 1.0          # Prevent exploding gradients by clipping
+  num_train_epochs: 3
+  batch_size: 32
+  gradient_accumulation_steps: 1
+  learning_rate: 1e-5
+  weight_decay: 0.01
+  max_steps: -1
+  fp16: false
+  bf16: true
+  warmup_steps: 500
+  save_steps: 1000
+  eval_steps: 1000
+  logging_steps: 500
+  gradient_clip_val: 1.0
 
 
 # Model parameters
@@ -28,12 +27,15 @@ model:
 
 # Dataset parameters
 dataset:
-  # name: "mozilla-foundation/common_voice_17_0"
-  name: "huge_subset/data"
+  name: "alexandrainst/coral"
+  data_dir: "huge_subset/data"
   config: null
   sampling_rate: 16000
   num_proc: 30
   batch_size_per_proc: 8
+
+
+# Deprecated
   language: "Danish"
   train_split: "train"
   eval_split: "val"
@@ -41,6 +43,13 @@ dataset:
   val_size: 500
   seed: 42
 
+
+
+  download:
+    output_dir: "huge_subset"
+    train_size: 50000
+    val_size: 1000
+
 eval:
   num_samples: 5
-device: "cuda"  # Use "cuda" for GPU or "cpu" for CPU
+device: "cuda"

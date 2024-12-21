@@ -10,7 +10,7 @@ student_model:
 
 dataset:
   name: "alexandrainst/coral"
-  # name: "mozilla-foundation/common_voice_17_0"
+  data_dir: "huge_subset/data"
   train_split: "train"
   eval_split: "val"
   config: da
@@ -39,14 +39,14 @@ training:
   warmup_ratio: 0.1
 
 lora:
-  rank: 16       # Increase from 8 to allow more expressivity
-  alpha: 64      # Increase from 32 to strengthen LoRA's influence
-  dropout: 0.05  # Decrease from 0.1 to allow more learning
+  rank: 16
+  alpha: 64
+  dropout: 0.05
   target_modules: [
     "q_proj", 
     "v_proj",
-    "k_proj",    # Add key projection
-    "out_proj",  # Add output projection
-    "fc1",       # Add feed-forward layers
+    "k_proj",
+    "out_proj",
+    "fc1",
     "fc2"
   ]

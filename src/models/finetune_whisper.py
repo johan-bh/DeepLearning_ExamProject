@@ -187,7 +187,7 @@ def train_whisper(cfg: DictConfig):
     dataset = load_dataset(cfg)
 
     # only take 500 samples from val
-    dataset["validation"] = dataset["validation"].select(range(500))
+    # dataset["validation"] = dataset["validation"].select(range(500))
 
     # column cast audio 16khz, for extra safety
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
@@ -249,14 +249,14 @@ def train_whisper(cfg: DictConfig):
         bf16=cfg.training.bf16,
         warmup_steps=500,
         warmup_ratio=0.1,
-        save_strategy="steps",
-        save_steps=1000,
+        save_strategy="epoch",
+        # save_steps=1000,
         save_total_limit=2,
-        logging_steps=500,
+        # logging_steps=500,
         eval_strategy="steps",
-        eval_steps=1000,
+        # eval_steps=1000,
         predict_with_generate=True,
-        generation_max_length=448,
+        generation_max_length=256,
         generation_num_beams=1,
         push_to_hub=False,
         remove_unused_columns=False,

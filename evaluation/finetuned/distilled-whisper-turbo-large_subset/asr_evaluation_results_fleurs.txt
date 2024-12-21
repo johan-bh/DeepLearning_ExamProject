@@ -1,0 +1,26 @@
+
+
+Results for FLEURS:
+==================================================
+
+whisper-large-v3-turbo:
+CER: 0.0849
+WER: 0.3051
+
+Example Predictions:
+
+Reference: sachin tendulkar og rahul dravid batsmen fra mellemordenen klarede sig godt og havde et partnerskab på hundrede løb
+Prediction:  Sashin Tendulkar og Rahul Dravid, batsmand fra mellemmordene, klarede sig godt og havde et partnerskab på 100 løb.
+
+Reference: dette kaldes et kemikalies ph-værdi du kan lave en indikator ved at bruge rødkålssaft
+Prediction:  Dette kaldes et kemikalies pH-værdi, du kan lave en indikator ved at bruge rødkålsaft.
+
+Reference: populære sportsgrene inkluderer fodbold basketball volleyball vandpolo fægtning rugby cykling ishockey rulleskøjtehockey og f1 motorsport
+Prediction:  Populære sportsgrene inkluderer fodbold, basketball, volleyball, vandpolo, fækning, rugby, cykling, ishockey, rulleskøjdehockey og effekt motorsport.
+
+Reference: løveflokke reagerer meget ligesom ulve eller hunde i flokke dyr som er overraskende lig løver men ikke andre store katte i adfærd og også meget dødbringende over for deres bytte
+Prediction:  Løveflokke reagerer meget ligesom ulve eller hunde i flokke dyr, som er overraskende lige løver, men ikke andre store katte i adfærd og er meget dødbringende over for deres bytte.
+
+Reference: apia er samoas hovedstad byen ligger på øen upolu og har et indbyggertal på lige under 40.000
+Prediction:  Apir er Samoras hovedstad. Byen ligger på øen Opulu og har et indbyggertal på lige under 40.000.
+------------------------------

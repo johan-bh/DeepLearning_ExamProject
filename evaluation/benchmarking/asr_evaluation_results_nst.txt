@@ -1,0 +1,92 @@
+
+
+Results for NST:
+==================================================
+
+Turbo-Finetuned-20k:
+CER: 0.2130
+WER: 0.4493
+
+Example Predictions:
+
+Reference: S I K K E R H E D S Z O N E
+Prediction: s i k k e r h e d s z o n e
+
+Reference: Byg et kapel, hvor mine fans kan meditere.
+Prediction: bygge et kapel hvor mine fans kan meditere
+
+Reference: Skønt den omfattende karriere kræver meget fravær hjemmefra, har situationen ikke medført afsavn i sangerindens privatliv.
+Prediction: skøn den omfattende karriere kræver meget fravær hjemmefra har situationen ikke medført afsavn i sangerindens privatliv
+
+Reference: forbi forbi forbi
+Prediction: forbi forbi forbi
+
+Reference: end end end
+Prediction: n n n
+------------------------------
+
+Turbo-KD-20k:
+CER: 0.2233
+WER: 0.4561
+
+Example Predictions:
+
+Reference: S I K K E R H E D S Z O N E
+Prediction: sikkerhedszone
+
+Reference: Byg et kapel, hvor mine fans kan meditere.
+Prediction: bygge et kapel hvor mine fans kan meditere
+
+Reference: Skønt den omfattende karriere kræver meget fravær hjemmefra, har situationen ikke medført afsavn i sangerindens privatliv.
+Prediction: skøn den omfattende karriere kræver meget fravær hjemmefra har situationen ikke medført afsagn i sangerindens privatliv
+
+Reference: forbi forbi forbi
+Prediction: forbi forbi forbi forbi
+
+Reference: end end end
+Prediction:  nnn
+------------------------------
+
+hviske-v2:
+CER: 0.1982
+WER: 0.4382
+
+Example Predictions:
+
+Reference: S I K K E R H E D S Z O N E
+Prediction: sik ker heds zone
+
+Reference: Byg et kapel, hvor mine fans kan meditere.
+Prediction: bygge et kapel hvor mine fans kan meditere
+
+Reference: Skønt den omfattende karriere kræver meget fravær hjemmefra, har situationen ikke medført afsavn i sangerindens privatliv.
+Prediction: skøn den omfattende karriere kræver meget fravær hjemmefra har situationen ikke medført afsagn i sangerindens privatliv
+
+Reference: forbi forbi forbi
+Prediction: forbi forbi forbi
+
+Reference: end end end
+Prediction: n n n
+------------------------------
+
+whisper-large-v3-turbo:
+CER: 0.1906
+WER: 0.3033
+
+Example Predictions:
+
+Reference: S I K K E R H E D S Z O N E
+Prediction:  S-I-K-K-E-R-H-E-D-S-Z-O-N-E
+
+Reference: Byg et kapel, hvor mine fans kan meditere.
+Prediction:  Byg et kapel, hvor mine fans kan meditere.
+
+Reference: Skønt den omfattende karriere kræver meget fravær hjemmefra, har situationen ikke medført afsavn i sangerindens privatliv.
+Prediction:  Skal den omfattende karriere kræve meget fravær hjemmefra, har situationen ikke medført afsavn i sangerindens privatliv.
+
+Reference: forbi forbi forbi
+Prediction:  Forbi, forbi, forbi.
+
+Reference: end end end
+Prediction:  N, N, N
+------------------------------
